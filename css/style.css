@@ -203,6 +203,8 @@ body {
     max-width: 900px;
     margin: 0 auto;
     padding: 16px;
+    min-height: calc(100vh - 140px);
+    min-height: calc(100dvh - 140px);
 }
 
 /* Sekmelerin Gizlenip Gösterilmesi */
@@ -216,8 +218,123 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(6px); }
+    from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* Dönem Filtre Kartı (Ana Sayfa Özet Üstü) */
+.period-filter-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    box-shadow: var(--shadow-sm);
+}
+
+.period-filter-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.period-icon-bubble {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--primary-light);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.period-filter-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-main);
+    line-height: 1.2;
+}
+
+.period-filter-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.select-sm {
+    padding: 6px 10px;
+    font-size: 0.82rem;
+    border-radius: 8px;
+}
+
+/* Açılır Kapanır Bölümler (Gider ve Gelir Kalemleri) */
+.collapsible-section {
+    background: transparent;
+    transition: all 0.2s ease;
+}
+
+.collapsible-header {
+    cursor: pointer;
+    user-select: none;
+    padding: 6px 0;
+    border-radius: 10px;
+    transition: opacity 0.15s ease;
+}
+
+.collapsible-header:hover {
+    opacity: 0.9;
+}
+
+.collapsible-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.collapsible-section .accordion-chevron {
+    transition: transform 0.25s ease;
+    color: var(--text-muted);
+}
+
+.collapsible-section.open .accordion-chevron {
+    transform: rotate(180deg);
+}
+
+.collapsible-section .collapsible-content {
+    display: none;
+    margin-top: 10px;
+}
+
+.collapsible-section.open .collapsible-content {
+    display: block;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.badge-income {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+/* Gelir Kalemleri Izgarası */
+.home-income-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+@media (min-width: 600px) {
+    .home-income-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.income-card {
+    border-left: 4px solid var(--success) !important;
 }
 
 /* Özet Finans Kartları */
@@ -732,9 +849,106 @@ body {
 .group-stat-card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: 14px;
-    padding: 14px 16px;
+    border-radius: 16px;
+    padding: 16px;
     box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.collapsible-stat-card {
+    cursor: pointer;
+    user-select: none;
+}
+
+.collapsible-stat-card:hover {
+    border-color: var(--primary-border);
+    box-shadow: var(--shadow-md);
+}
+
+.collapsible-stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.stat-chevron-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.stat-count-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--bg-card-hover);
+    color: var(--text-muted);
+}
+
+.collapsible-stat-card .accordion-chevron {
+    color: var(--text-muted);
+    transition: transform 0.25s ease;
+}
+
+.collapsible-stat-card.open .accordion-chevron {
+    transform: rotate(180deg);
+}
+
+.collapsible-stat-content {
+    display: none;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+    max-height: 280px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.collapsible-stat-card.open .collapsible-stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    animation: fadeIn 0.2s ease;
+}
+
+.stat-sub-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: var(--bg-body);
+    border-radius: 10px;
+    font-size: 0.8rem;
+    transition: background-color 0.15s;
+    cursor: pointer;
+}
+
+.stat-sub-item:hover {
+    background: var(--bg-card-hover);
+}
+
+.stat-sub-item-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.stat-sub-title {
+    font-weight: 600;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stat-sub-amount {
+    font-weight: 700;
+    color: var(--text-main);
+    flex-shrink: 0;
 }
 
 .group-stat-title {
@@ -977,7 +1191,7 @@ body {
 /* Sabit Alt Navigasyon Çubuğu (Bottom Nav - 1. Ana Sayfa, 2. Kayıtlar, 3. Analiz, 4. Ayarlar) */
 .bottom-nav {
     position: fixed;
-    bottom: 0;
+    bottom: 0 !important;
     left: 0;
     right: 0;
     background: var(--nav-bg);
@@ -991,13 +1205,15 @@ body {
     padding-bottom: max(8px, env(safe-area-inset-bottom, 12px));
     z-index: 50;
     box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05);
+    transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
 }
 
 @media (min-width: 900px) {
     .bottom-nav {
         max-width: 500px;
         left: 50%;
-        transform: translateX(-50%);
+        transform: translateX(-50%) translate3d(0, 0, 0);
         border-radius: 20px 20px 0 0;
         border: 1px solid var(--border-color);
         border-bottom: none;

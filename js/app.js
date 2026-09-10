@@ -170,7 +170,7 @@ function updatePeriodHeader() {
 
 // ==================== 1. SEKME: ANA SAYFA MANTIĞI ====================
 function renderHomeTab() {
-    // 1. Özet Sayılarını Hesapla (Seçili ay için)
+    // 1. Özet Sayılarını Hesapla (Seçili ay ve yıl için)
     const analytics = calculateMonthlyAnalytics(AppState.transactions, AppState.selectedYear, AppState.selectedMonth);
 
     document.getElementById('homeTotalIncome').textContent = formatCurrency(analytics.totalIncome);
@@ -188,59 +188,76 @@ function renderHomeTab() {
     document.getElementById('homePaidCount').textContent = `${paidCount} ödeme yapıldı`;
     document.getElementById('homeUnpaidCount').textContent = `${unpaidCount} ödeme bekliyor`;
 
-    // 2. Zorunlu ve Dinamik Kalemler Izgarası
-    // Su, Elektrik, İnternet, Doğalgaz, Telefon, Banka, Taksitler
+    // 2. Gider Kalemleri Izgarası
     const homeCatGrid = document.getElementById('homeCategoryGrid');
-    if (!homeCatGrid) return;
-
-    homeCatGrid.innerHTML = '';
-
-    // Kullanıcının belirttiği zorunlu kalem listesi:
-    const mainCategories = ['su', 'elektrik', 'internet', 'dogalgaz', 'telefon', 'banka', 'taksit'];
-
-    // Mevcut aydaki harcamaları kategorilerine göre eşleştirelim
+    const expensesBadge = document.getElementById('expensesBadge');
     const monthlyExpenses = analytics.monthlyTx.filter(t => t.type !== 'income');
 
-    mainCategories.forEach(catKey => {
-        const meta = CATEGORY_META[catKey];
-        // Bu kategoriye ait bu ayki tüm kayıtlar
-        const catTxList = monthlyExpenses.filter(t => t.category === catKey);
+    if (expensesBadge) {
+        expensesBadge.textContent = `${monthlyExpenses.length} Kalem • ${formatCurrency(analytics.totalExpense)}`;
+    }
 
-        if (catKey === 'taksit') {
-            // Taksitler birden fazla olabilir, her taksiti ayrı kart olarak listelemek kullanıcı için en kullanışlısıdır!
-            if (catTxList.length === 0) {
-                homeCatGrid.appendChild(createEmptyCategoryCard(catKey, meta));
+    if (homeCatGrid) {
+        homeCatGrid.innerHTML = '';
+        const mainCategories = ['su', 'elektrik', 'internet', 'dogalgaz', 'telefon', 'banka', 'taksit'];
+
+        mainCategories.forEach(catKey => {
+            const meta = CATEGORY_META[catKey];
+            const catTxList = monthlyExpenses.filter(t => t.category === catKey);
+
+            if (catKey === 'taksit') {
+                if (catTxList.length === 0) {
+                    homeCatGrid.appendChild(createEmptyCategoryCard(catKey, meta));
+                } else {
+                    catTxList.forEach(tx => {
+                        homeCatGrid.appendChild(createHomeTransactionCard(tx, meta, true));
+                    });
+                }
+            } else if (catKey === 'banka') {
+                if (catTxList.length === 0) {
+                    homeCatGrid.appendChild(createEmptyCategoryCard(catKey, meta));
+                } else {
+                    catTxList.forEach(tx => {
+                        homeCatGrid.appendChild(createHomeTransactionCard(tx, meta, false));
+                    });
+                }
             } else {
-                catTxList.forEach(tx => {
-                    homeCatGrid.appendChild(createHomeTransactionCard(tx, meta, true));
-                });
+                if (catTxList.length === 0) {
+                    homeCatGrid.appendChild(createEmptyCategoryCard(catKey, meta));
+                } else {
+                    catTxList.forEach(tx => {
+                        homeCatGrid.appendChild(createHomeTransactionCard(tx, meta, false));
+                    });
+                }
             }
-        } else if (catKey === 'banka') {
-            // Banka borçları
-            if (catTxList.length === 0) {
-                homeCatGrid.appendChild(createEmptyCategoryCard(catKey, meta));
-            } else {
-                catTxList.forEach(tx => {
-                    homeCatGrid.appendChild(createHomeTransactionCard(tx, meta, false));
-                });
-            }
+        });
+
+        // Diğer Harcamalar
+        const otherList = monthlyExpenses.filter(t => t.category === 'diger');
+        otherList.forEach(tx => {
+            homeCatGrid.appendChild(createHomeTransactionCard(tx, CATEGORY_META['diger'], false));
+        });
+    }
+
+    // 3. Gelir Kalemleri Izgarası
+    const homeIncomeGrid = document.getElementById('homeIncomeGrid');
+    const incomesBadge = document.getElementById('incomesBadge');
+    const monthlyIncomes = analytics.monthlyTx.filter(t => t.type === 'income');
+
+    if (incomesBadge) {
+        incomesBadge.textContent = `${monthlyIncomes.length} Gelir • ${formatCurrency(analytics.totalIncome)}`;
+    }
+
+    if (homeIncomeGrid) {
+        homeIncomeGrid.innerHTML = '';
+        if (monthlyIncomes.length === 0) {
+            homeIncomeGrid.appendChild(createEmptyIncomeCard());
         } else {
-            // Standart Faturalar (Su, Elektrik, İnternet, Doğalgaz, Telefon)
-            if (catTxList.length === 0) {
-                homeCatGrid.appendChild(createEmptyCategoryCard(catKey, meta));
-            } else {
-                catTxList.forEach(tx => {
-                    homeCatGrid.appendChild(createHomeTransactionCard(tx, meta, false));
-                });
-            }
+            monthlyIncomes.forEach(tx => {
+                homeIncomeGrid.appendChild(createHomeIncomeCard(tx));
+            });
         }
-    });
-
-    // Varsa Diğer Harcamalar
-    const otherList = monthlyExpenses.filter(t => t.category === 'diger');
-    otherList.forEach(tx => {
-        homeCatGrid.appendChild(createHomeTransactionCard(tx, CATEGORY_META['diger'], false));
-    });
+    }
 }
 
 function createHomeTransactionCard(tx, meta, isInstallment) {
@@ -316,6 +333,77 @@ function createEmptyCategoryCard(catKey, meta) {
     });
 
     return card;
+}
+
+function createHomeIncomeCard(tx) {
+    const card = document.createElement('div');
+    card.className = 'home-cat-card income-card';
+
+    card.innerHTML = `
+        <div class="cat-info-group">
+            <div class="cat-emoji-bubble" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                💰
+            </div>
+            <div class="cat-text-group">
+                <span class="cat-name">${tx.title}</span>
+                <span class="cat-status-text">Tarih: ${formatDateTR(tx.dueDate)} ${tx.notes ? '• ' + tx.notes : ''}</span>
+            </div>
+        </div>
+        <div class="cat-amount-group">
+            <span class="cat-amount" style="color: #10b981;">+₺${Number(tx.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+            <span class="status-pill status-paid">
+                <i data-lucide="check" style="width: 12px; height: 12px;"></i> Gelir
+            </span>
+        </div>
+    `;
+
+    card.addEventListener('click', () => {
+        openDetailModal(tx);
+    });
+
+    return card;
+}
+
+function createEmptyIncomeCard() {
+    const card = document.createElement('div');
+    card.className = 'home-cat-card';
+    card.style.opacity = '0.8';
+
+    card.innerHTML = `
+        <div class="cat-info-group">
+            <div class="cat-emoji-bubble" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">
+                💰
+            </div>
+            <div class="cat-text-group">
+                <span class="cat-name">Gelir Kaydı Bulunamadı</span>
+                <span class="cat-status-text">Bu ay için henüz gelir eklenmedi</span>
+            </div>
+        </div>
+        <div class="cat-amount-group">
+            <span class="cat-amount" style="color: var(--text-muted);">₺0,00</span>
+            <span class="status-pill" style="background: var(--bg-card-hover); color: var(--primary);">
+                <i data-lucide="plus" style="width: 12px; height: 12px;"></i> Gelir Ekle
+            </span>
+        </div>
+    `;
+
+    card.addEventListener('click', () => {
+        openRecordModalForIncome();
+    });
+
+    return card;
+}
+
+function openRecordModalForIncome() {
+    openRecordModal();
+    const formType = document.getElementById('formType');
+    const formCategory = document.getElementById('formCategory');
+    const formTitle = document.getElementById('formTitle');
+    const formIsPaid = document.getElementById('formIsPaid');
+    if (formType) formType.value = 'income';
+    if (formCategory) formCategory.value = 'gelir';
+    if (formTitle) formTitle.value = 'Aylık Maaş Geliri';
+    if (formIsPaid) formIsPaid.value = 'true';
 }
 
 // ==================== 2. SEKME: KAYITLAR MANTIĞI ====================
@@ -485,14 +573,77 @@ function updateAnalysisTab() {
     if (instEl) instEl.textContent = formatCurrency(analytics.totalInstallments);
     if (bankEl) bankEl.textContent = formatCurrency(analytics.totalBankDebts);
 
+    // Kalemleri Ayrı Ayrı Gruplama ve Açılır/Kapanır İçerikleri Doldurma
+    const monthlyExpenses = analytics.monthlyTx.filter(t => t.type !== 'income');
+    const billsList = monthlyExpenses.filter(t => BILL_CATEGORIES.includes(t.category));
+    const installmentsList = monthlyExpenses.filter(t => t.category === 'taksit');
+    const bankList = monthlyExpenses.filter(t => t.category === 'banka');
+
+    const badgeBills = document.getElementById('badgeBillsCount');
+    const badgeInst = document.getElementById('badgeInstallmentsCount');
+    const badgeBank = document.getElementById('badgeBankCount');
+
+    if (badgeBills) badgeBills.textContent = `${billsList.length} Kalem`;
+    if (badgeInst) badgeInst.textContent = `${installmentsList.length} Taksit`;
+    if (badgeBank) badgeBank.textContent = `${bankList.length} Borç`;
+
+    populateStatSubList('listStatBills', billsList);
+    populateStatSubList('listStatInstallments', installmentsList);
+    populateStatSubList('listStatBank', bankList);
+
     const isDark = document.body.classList.contains('dark');
     renderCharts(analytics, isDark);
 }
 
+function populateStatSubList(containerId, list) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = '';
+    if (list.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 0.76rem; padding: 8px 0;">Bu ay için kayıt bulunmuyor</div>`;
+        return;
+    }
+
+    list.forEach(tx => {
+        const meta = CATEGORY_META[tx.category] || CATEGORY_META['diger'];
+        const statusObj = getDueStatus(tx.dueDate, tx.isPaid);
+        const item = document.createElement('div');
+        item.className = 'stat-sub-item';
+
+        let titleDisplay = tx.title;
+        if (tx.category === 'taksit' && tx.installmentTotal) {
+            titleDisplay = `${tx.title} (${tx.installmentCurrent || 1}/${tx.installmentTotal})`;
+        }
+
+        item.innerHTML = `
+            <div class="stat-sub-item-left">
+                <span style="font-size: 1rem;">${meta.emoji}</span>
+                <div style="min-width: 0;">
+                    <div class="stat-sub-title">${titleDisplay}</div>
+                    <div style="font-size: 0.68rem; color: var(--text-muted);">${formatDateTR(tx.dueDate)}</div>
+                </div>
+            </div>
+            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
+                <span class="stat-sub-amount">₺${Number(tx.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                <span class="status-pill ${statusObj.badgeClass}" style="font-size: 0.62rem; padding: 1px 6px;">${statusObj.text}</span>
+            </div>
+        `;
+
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openDetailModal(tx);
+        });
+
+        container.appendChild(item);
+    });
+}
+
 function setupYearMonthSelectors() {
-    const yearSelect = document.getElementById('analysisYearSelect');
-    const monthSelect = document.getElementById('analysisMonthSelect');
-    if (!yearSelect || !monthSelect) return;
+    const selectors = [
+        { y: document.getElementById('homeYearSelect'), m: document.getElementById('homeMonthSelect') },
+        { y: document.getElementById('analysisYearSelect'), m: document.getElementById('analysisMonthSelect') }
+    ];
 
     // Yılları topla
     const currentYear = new Date().getFullYear();
@@ -506,36 +657,92 @@ function setupYearMonthSelectors() {
     });
 
     const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
-    yearSelect.innerHTML = '';
-    sortedYears.forEach(y => {
-        const opt = document.createElement('option');
-        opt.value = y;
-        opt.textContent = y;
-        if (y === AppState.selectedYear) opt.selected = true;
-        yearSelect.appendChild(opt);
+
+    selectors.forEach(pair => {
+        if (pair.y) {
+            pair.y.innerHTML = '';
+            sortedYears.forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = y;
+                if (y === AppState.selectedYear) opt.selected = true;
+                pair.y.appendChild(opt);
+            });
+            pair.y.onchange = (e) => {
+                AppState.selectedYear = parseInt(e.target.value, 10);
+                syncSelectors();
+                renderAll();
+            };
+        }
+
+        if (pair.m) {
+            pair.m.value = String(AppState.selectedMonth);
+            pair.m.onchange = (e) => {
+                AppState.selectedMonth = parseInt(e.target.value, 10);
+                syncSelectors();
+                renderAll();
+            };
+        }
     });
 
-    monthSelect.value = String(AppState.selectedMonth);
-
-    yearSelect.addEventListener('change', (e) => {
-        AppState.selectedYear = parseInt(e.target.value, 10);
-        renderAll();
-    });
-
-    monthSelect.addEventListener('change', (e) => {
-        AppState.selectedMonth = parseInt(e.target.value, 10);
-        renderAll();
-    });
+    function syncSelectors() {
+        selectors.forEach(pair => {
+            if (pair.y) pair.y.value = String(AppState.selectedYear);
+            if (pair.m) pair.m.value = String(AppState.selectedMonth);
+        });
+    }
 }
 
 // ==================== 4. SEKME: AYARLAR MANTIĞI ====================
 function setupAccordions() {
+    // Ayarlar sekmesindeki standart akordiyonlar
     document.querySelectorAll('.accordion-header').forEach(header => {
         header.addEventListener('click', () => {
             const item = header.parentElement;
             item.classList.toggle('open');
         });
     });
+
+    // Ana Sayfa: Gider Kalemleri Açılır/Kapanır Başlığı
+    const headerExpenses = document.getElementById('headerExpenses');
+    if (headerExpenses) {
+        headerExpenses.addEventListener('click', () => {
+            document.getElementById('sectionExpenses')?.classList.toggle('open');
+        });
+    }
+
+    // Ana Sayfa: Gelir Kalemleri Açılır/Kapanır Başlığı
+    const headerIncomes = document.getElementById('headerIncomes');
+    if (headerIncomes) {
+        headerIncomes.addEventListener('click', () => {
+            document.getElementById('sectionIncomes')?.classList.toggle('open');
+        });
+    }
+
+    // Analiz: 3 Grup Kartı Açılır/Kapanır
+    const cardStatBills = document.getElementById('cardStatBills');
+    const headerStatBills = document.getElementById('headerStatBills');
+    if (headerStatBills && cardStatBills) {
+        headerStatBills.addEventListener('click', () => {
+            cardStatBills.classList.toggle('open');
+        });
+    }
+
+    const cardStatInstallments = document.getElementById('cardStatInstallments');
+    const headerStatInstallments = document.getElementById('headerStatInstallments');
+    if (headerStatInstallments && cardStatInstallments) {
+        headerStatInstallments.addEventListener('click', () => {
+            cardStatInstallments.classList.toggle('open');
+        });
+    }
+
+    const cardStatBank = document.getElementById('cardStatBank');
+    const headerStatBank = document.getElementById('headerStatBank');
+    if (headerStatBank && cardStatBank) {
+        headerStatBank.addEventListener('click', () => {
+            cardStatBank.classList.toggle('open');
+        });
+    }
 
     // Koyu Mod Seçimi
     const darkSelect = document.getElementById('settingDarkMode');
@@ -659,6 +866,15 @@ function switchTab(tabId) {
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.toggle('active', item.getAttribute('data-tab') === tabId);
     });
+
+    // Sayfa değiştirildiğinde anında en yukarı kaydır (mobil zıplamayı ve alt bar kaymasını önler)
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+
+    // Ayarlar sekmesinde FAB (+) butonunu gizle, diğerlerinde göster
+    const fab = document.getElementById('fabAddBtn');
+    if (fab) {
+        fab.style.display = (tabId === 'tab-settings') ? 'none' : 'flex';
+    }
 
     if (tabId === 'tab-analysis') {
         updateAnalysisTab();

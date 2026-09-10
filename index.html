@@ -57,6 +57,36 @@
 
         <!-- ==================== 1. SEKME: ANA SAYFA ==================== -->
         <section id="tab-home" class="tab-pane active">
+            <!-- Ana Sayfa Dönem Filtresi (Özet Bölümü Üstü) -->
+            <div class="period-filter-card">
+                <div class="period-filter-info">
+                    <div class="period-icon-bubble">
+                        <i data-lucide="calendar"></i>
+                    </div>
+                    <div>
+                        <div class="period-filter-title">Hesap Dönemi</div>
+                        <div class="period-filter-sub">Özet, gelir ve giderleri filtrele</div>
+                    </div>
+                </div>
+                <div class="date-filter-group">
+                    <select id="homeYearSelect" class="select-input select-sm"></select>
+                    <select id="homeMonthSelect" class="select-input select-sm">
+                        <option value="1">Ocak</option>
+                        <option value="2">Şubat</option>
+                        <option value="3">Mart</option>
+                        <option value="4">Nisan</option>
+                        <option value="5">Mayıs</option>
+                        <option value="6">Haziran</option>
+                        <option value="7">Temmuz</option>
+                        <option value="8">Ağustos</option>
+                        <option value="9">Eylül</option>
+                        <option value="10">Ekim</option>
+                        <option value="11">Kasım</option>
+                        <option value="12">Aralık</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Finansal Özet Kartları -->
             <div class="summary-grid">
                 <div class="summary-card card-income">
@@ -105,17 +135,44 @@
                 </div>
             </div>
 
-            <!-- Sabit & Dinamik Harcama Kategorileri (Hızlı Takip) -->
-            <div class="section-title-row">
-                <h2 class="section-title">
-                    <i data-lucide="layers"></i>
-                    Ödeme Kalemleri
-                </h2>
-                <span class="section-badge">Tıklayıp Detayı Gör</span>
+            <!-- Gider Kalemleri (Açılır Kapanır) -->
+            <div class="collapsible-section open" id="sectionExpenses">
+                <div class="section-title-row collapsible-header" id="headerExpenses">
+                    <h2 class="section-title">
+                        <i data-lucide="arrow-up-right" style="color: var(--danger);"></i>
+                        Gider Kalemleri
+                    </h2>
+                    <div class="collapsible-header-right">
+                        <span class="section-badge" id="expensesBadge">0 Kalem</span>
+                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                    </div>
+                </div>
+
+                <div class="collapsible-content">
+                    <div class="home-category-grid" id="homeCategoryGrid">
+                        <!-- JavaScript tarafından dinamik doldurulur -->
+                    </div>
+                </div>
             </div>
 
-            <div class="home-category-grid" id="homeCategoryGrid">
-                <!-- JavaScript tarafından dinamik doldurulur (Su, Elektrik, İnternet, Doğalgaz, Telefon, Banka, Taksitler) -->
+            <!-- Gelir Kalemleri (Açılır Kapanır) -->
+            <div class="collapsible-section open" id="sectionIncomes" style="margin-top: 18px;">
+                <div class="section-title-row collapsible-header" id="headerIncomes">
+                    <h2 class="section-title">
+                        <i data-lucide="arrow-down-left" style="color: var(--success);"></i>
+                        Gelir Kalemleri
+                    </h2>
+                    <div class="collapsible-header-right">
+                        <span class="section-badge badge-income" id="incomesBadge">0 Gelir</span>
+                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                    </div>
+                </div>
+
+                <div class="collapsible-content">
+                    <div class="home-income-grid" id="homeIncomeGrid">
+                        <!-- JavaScript tarafından dinamik doldurulur -->
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -165,33 +222,69 @@
                 </div>
             </div>
 
-            <!-- Kalemleri Ayrı Ayrı Hesaplama Kartları -->
+            <!-- Kalemleri Ayrı Ayrı Hesaplama Kartları (Açılır Kapanır) -->
             <div class="analysis-group-cards">
-                <div class="group-stat-card">
-                    <div class="group-stat-title">
-                        <i data-lucide="file-text" style="color: #3b82f6;"></i>
-                        Tüm Faturalar Toplamı
+                <!-- 1. Tüm Faturalar Toplamı -->
+                <div class="group-stat-card collapsible-stat-card" id="cardStatBills">
+                    <div class="collapsible-stat-header" id="headerStatBills">
+                        <div>
+                            <div class="group-stat-title">
+                                <i data-lucide="file-text" style="color: #3b82f6;"></i>
+                                Tüm Faturalar Toplamı
+                            </div>
+                            <div class="group-stat-amount" id="statBillsTotal">₺0,00</div>
+                            <div class="group-stat-sub">Su, Elektrik, İnternet, Gaz, Tel</div>
+                        </div>
+                        <div class="stat-chevron-wrap">
+                            <span class="stat-count-badge" id="badgeBillsCount">0 Kalem</span>
+                            <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                        </div>
                     </div>
-                    <div class="group-stat-amount" id="statBillsTotal">₺0,00</div>
-                    <div class="group-stat-sub">Su + Elektrik + İnternet + Doğalgaz + Telefon</div>
+                    <div class="collapsible-stat-content" id="listStatBills">
+                        <!-- Faturaların alt kalemleri dinamik listelenir -->
+                    </div>
                 </div>
 
-                <div class="group-stat-card">
-                    <div class="group-stat-title">
-                        <i data-lucide="credit-card" style="color: #8b5cf6;"></i>
-                        Tüm Taksitler Toplamı
+                <!-- 2. Tüm Taksitler Toplamı -->
+                <div class="group-stat-card collapsible-stat-card" id="cardStatInstallments">
+                    <div class="collapsible-stat-header" id="headerStatInstallments">
+                        <div>
+                            <div class="group-stat-title">
+                                <i data-lucide="credit-card" style="color: #8b5cf6;"></i>
+                                Tüm Taksitler Toplamı
+                            </div>
+                            <div class="group-stat-amount" id="statInstallmentsTotal">₺0,00</div>
+                            <div class="group-stat-sub">Aktif aylık taksit ödemeleri</div>
+                        </div>
+                        <div class="stat-chevron-wrap">
+                            <span class="stat-count-badge" id="badgeInstallmentsCount">0 Taksit</span>
+                            <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                        </div>
                     </div>
-                    <div class="group-stat-amount" id="statInstallmentsTotal">₺0,00</div>
-                    <div class="group-stat-sub">Aktif aylık taksit ödemeleri</div>
+                    <div class="collapsible-stat-content" id="listStatInstallments">
+                        <!-- Taksitlerin alt kalemleri dinamik listelenir -->
+                    </div>
                 </div>
 
-                <div class="group-stat-card">
-                    <div class="group-stat-title">
-                        <i data-lucide="landmark" style="color: #ef4444;"></i>
-                        Banka Borçları Toplamı
+                <!-- 3. Banka Borçları Toplamı -->
+                <div class="group-stat-card collapsible-stat-card" id="cardStatBank">
+                    <div class="collapsible-stat-header" id="headerStatBank">
+                        <div>
+                            <div class="group-stat-title">
+                                <i data-lucide="landmark" style="color: #ef4444;"></i>
+                                Banka Borçları Toplamı
+                            </div>
+                            <div class="group-stat-amount" id="statBankDebtsTotal">₺0,00</div>
+                            <div class="group-stat-sub">Kredi kartı ve banka borçları</div>
+                        </div>
+                        <div class="stat-chevron-wrap">
+                            <span class="stat-count-badge" id="badgeBankCount">0 Borç</span>
+                            <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                        </div>
                     </div>
-                    <div class="group-stat-amount" id="statBankDebtsTotal">₺0,00</div>
-                    <div class="group-stat-sub">Kredi kartı ve banka borçları</div>
+                    <div class="collapsible-stat-content" id="listStatBank">
+                        <!-- Banka borçlarının alt kalemleri dinamik listelenir -->
+                    </div>
                 </div>
             </div>
 
