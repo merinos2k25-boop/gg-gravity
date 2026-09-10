@@ -1,0 +1,17 @@
+{
+  "name": "gelir-gider-defteri",
+  "version": "2.0.0",
+  "description": "Mobil uyumlu aylık hesap gelir-gider defteri",
+  "author": "Hakan Korkmaz",
+  "license": "MIT",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": [
+    "finance",
+    "budget",
+    "expense-tracker",
+    "pwa",
+    "mobile"
+  ]
+}

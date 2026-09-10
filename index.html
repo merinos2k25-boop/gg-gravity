@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Aylık Hesap Gelir-Gider Defteri</title>
+    <meta name="theme-color" content="#10b981">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Gelir-Gider">
+
+    <!-- Web App Manifest & İkonlar -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
+
+    <!-- Google Fonts: Inter, Roboto, Poppins, Outfit, Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Stil Dosyası -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- Üst Başlık (Mobil saat ve çentik korumalı) -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand-badge">
+                <div class="brand-icon">
+                    <i data-lucide="wallet"></i>
+                </div>
+                <div class="brand-title">
+                    <span>Gelir-Gider Defteri</span>
+                    <span class="brand-subtitle" id="currentPeriodLabel">Mart 2026</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" id="btnQuickAdd" title="Yeni Kayıt Ekle">
+                    <i data-lucide="plus"></i>
+                </button>
+                <button class="icon-btn" id="btnThemeToggle" title="Koyu/Açık Mod">
+                    <i data-lucide="moon" id="themeIcon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Ana İçerik Konteyneri -->
+    <main class="main-container">
+
+        <!-- ==================== 1. SEKME: ANA SAYFA ==================== -->
+        <section id="tab-home" class="tab-pane active">
+            <!-- Finansal Özet Kartları -->
+            <div class="summary-grid">
+                <div class="summary-card card-income">
+                    <div class="summary-card-header">
+                        <span class="summary-card-title">Toplam Gelir</span>
+                        <div class="summary-card-icon"><i data-lucide="trending-up"></i></div>
+                    </div>
+                    <div class="summary-card-amount" id="homeTotalIncome">₺0,00</div>
+                    <div class="summary-card-subtext">Maaş & ek gelirler</div>
+                </div>
+
+                <div class="summary-card card-expense">
+                    <div class="summary-card-header">
+                        <span class="summary-card-title">Toplam Gider</span>
+                        <div class="summary-card-icon"><i data-lucide="trending-down"></i></div>
+                    </div>
+                    <div class="summary-card-amount" id="homeTotalExpense">₺0,00</div>
+                    <div class="summary-card-subtext">Tüm fatura & borçlar</div>
+                </div>
+
+                <div class="summary-card card-paid">
+                    <div class="summary-card-header">
+                        <span class="summary-card-title">Ödenen Tutar</span>
+                        <div class="summary-card-icon"><i data-lucide="check-circle-2"></i></div>
+                    </div>
+                    <div class="summary-card-amount" id="homeTotalPaid">₺0,00</div>
+                    <div class="summary-card-subtext" id="homePaidCount">0 ödeme yapıldı</div>
+                </div>
+
+                <div class="summary-card card-unpaid">
+                    <div class="summary-card-header">
+                        <span class="summary-card-title">Kalan / Yaklaşan</span>
+                        <div class="summary-card-icon"><i data-lucide="clock"></i></div>
+                    </div>
+                    <div class="summary-card-amount" id="homeTotalUnpaid">₺0,00</div>
+                    <div class="summary-card-subtext" id="homeUnpaidCount">0 ödeme bekliyor</div>
+                </div>
+
+                <div class="summary-card card-balance">
+                    <div class="summary-card-header">
+                        <span class="summary-card-title" style="color: var(--primary);">Net Kalan Bakiye</span>
+                        <div class="summary-card-icon" style="background: var(--primary); color: #fff;"><i data-lucide="scale"></i></div>
+                    </div>
+                    <div class="summary-card-amount" id="homeNetBalance" style="color: var(--primary);">₺0,00</div>
+                    <div class="summary-card-subtext">Gelir - Gider Farkı</div>
+                </div>
+            </div>
+
+            <!-- Sabit & Dinamik Harcama Kategorileri (Hızlı Takip) -->
+            <div class="section-title-row">
+                <h2 class="section-title">
+                    <i data-lucide="layers"></i>
+                    Ödeme Kalemleri
+                </h2>
+                <span class="section-badge">Tıklayıp Detayı Gör</span>
+            </div>
+
+            <div class="home-category-grid" id="homeCategoryGrid">
+                <!-- JavaScript tarafından dinamik doldurulur (Su, Elektrik, İnternet, Doğalgaz, Telefon, Banka, Taksitler) -->
+            </div>
+        </section>
+
+        <!-- ==================== 2. SEKME: KAYITLAR ==================== -->
+        <section id="tab-records" class="tab-pane">
+            <div class="filter-bar">
+                <div class="search-input-wrapper">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="text" id="recordsSearchInput" placeholder="Kayıt ara (fatura, taksit adı vb.)...">
+                </div>
+                <div class="filter-pills-row">
+                    <button class="filter-pill-btn active" data-filter="all">Tümü</button>
+                    <button class="filter-pill-btn" data-filter="unpaid">Ödenmeyenler</button>
+                    <button class="filter-pill-btn" data-filter="paid">Ödenenler</button>
+                    <button class="filter-pill-btn" data-filter="upcoming">Yaklaşanlar</button>
+                </div>
+            </div>
+
+            <div class="records-list" id="recordsListContainer">
+                <!-- Kayıtlar dinamik olarak listelenecek -->
+            </div>
+        </section>
+
+        <!-- ==================== 3. SEKME: ANALİZ ==================== -->
+        <section id="tab-analysis" class="tab-pane">
+            <div class="analysis-header">
+                <div>
+                    <h2 class="section-title"><i data-lucide="pie-chart"></i> Aylık Analiz ve Rapor</h2>
+                    <p style="font-size: 0.78rem; color: var(--text-muted);">Ödemelerinizin kalem bazlı dağılımı ve performansı</p>
+                </div>
+                <div class="date-filter-group">
+                    <select id="analysisYearSelect" class="select-input"></select>
+                    <select id="analysisMonthSelect" class="select-input">
+                        <option value="1">Ocak</option>
+                        <option value="2">Şubat</option>
+                        <option value="3">Mart</option>
+                        <option value="4">Nisan</option>
+                        <option value="5">Mayıs</option>
+                        <option value="6">Haziran</option>
+                        <option value="7">Temmuz</option>
+                        <option value="8">Ağustos</option>
+                        <option value="9">Eylül</option>
+                        <option value="10">Ekim</option>
+                        <option value="11">Kasım</option>
+                        <option value="12">Aralık</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Kalemleri Ayrı Ayrı Hesaplama Kartları -->
+            <div class="analysis-group-cards">
+                <div class="group-stat-card">
+                    <div class="group-stat-title">
+                        <i data-lucide="file-text" style="color: #3b82f6;"></i>
+                        Tüm Faturalar Toplamı
+                    </div>
+                    <div class="group-stat-amount" id="statBillsTotal">₺0,00</div>
+                    <div class="group-stat-sub">Su + Elektrik + İnternet + Doğalgaz + Telefon</div>
+                </div>
+
+                <div class="group-stat-card">
+                    <div class="group-stat-title">
+                        <i data-lucide="credit-card" style="color: #8b5cf6;"></i>
+                        Tüm Taksitler Toplamı
+                    </div>
+                    <div class="group-stat-amount" id="statInstallmentsTotal">₺0,00</div>
+                    <div class="group-stat-sub">Aktif aylık taksit ödemeleri</div>
+                </div>
+
+                <div class="group-stat-card">
+                    <div class="group-stat-title">
+                        <i data-lucide="landmark" style="color: #ef4444;"></i>
+                        Banka Borçları Toplamı
+                    </div>
+                    <div class="group-stat-amount" id="statBankDebtsTotal">₺0,00</div>
+                    <div class="group-stat-sub">Kredi kartı ve banka borçları</div>
+                </div>
+            </div>
+
+            <!-- Grafikler -->
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i data-lucide="donut"></i>
+                    Gider Kalemleri Dağılımı
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="categoryDoughnutChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-title">
+                    <i data-lucide="bar-chart-3"></i>
+                    Ödenen vs Ödenmeyen Durumu
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="paidUnpaidBarChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 4. SEKME: AYARLAR ==================== -->
+        <section id="tab-settings" class="tab-pane">
+            <div class="section-title-row" style="margin-top: 0;">
+                <h2 class="section-title"><i data-lucide="sliders"></i> Ayarlar ve Özelleştirme</h2>
+            </div>
+
+            <!-- Toparlanmış Akordiyon Yapı (Tek tıkla açılır/kapanır) -->
+            <div class="settings-accordion">
+                <!-- 1. Görünüm & Koyu Mod -->
+                <div class="accordion-item open">
+                    <div class="accordion-header">
+                        <div class="accordion-header-left">
+                            <div class="accordion-icon"><i data-lucide="palette"></i></div>
+                            <div>
+                                <div class="accordion-title">Görünüm ve Tema</div>
+                                <div class="accordion-subtitle">Koyu mod, renk teması ve yazı stili</div>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="setting-option-row">
+                            <span class="setting-label">Tema Modu</span>
+                            <select id="settingDarkMode" class="select-input">
+                                <option value="auto">Otomatik (Cihaz)</option>
+                                <option value="light">Açık Mod</option>
+                                <option value="dark">Koyu Mod</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-option-row">
+                            <span class="setting-label">Vurgu Rengi</span>
+                            <div class="theme-color-picker">
+                                <div class="theme-dot active" data-color="emerald" style="background: #10b981;" title="Zümrüt Yeşili"></div>
+                                <div class="theme-dot" data-color="sapphire" style="background: #2563eb;" title="Safir Mavisi"></div>
+                                <div class="theme-dot" data-color="violet" style="background: #8b5cf6;" title="Gece Moru"></div>
+                                <div class="theme-dot" data-color="amber" style="background: #f59e0b;" title="Amber Turuncu"></div>
+                                <div class="theme-dot" data-color="rose" style="background: #f43f5e;" title="Gül Pembesi"></div>
+                            </div>
+                        </div>
+
+                        <div class="setting-option-row">
+                            <span class="setting-label">Yazı Stili (Font)</span>
+                            <select id="settingFontFamily" class="select-input">
+                                <option value="Inter">Inter (Standart Modern)</option>
+                                <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
+                                <option value="Poppins">Poppins (Yuvarlak)</option>
+                                <option value="Roboto">Roboto</option>
+                                <option value="Outfit">Outfit</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Veri Yönetimi & JSON Yedekleme -->
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <div class="accordion-header-left">
+                            <div class="accordion-icon"><i data-lucide="database"></i></div>
+                            <div>
+                                <div class="accordion-title">Veri Yönetimi (JSON)</div>
+                                <div class="accordion-subtitle">Dışa ve içe aktarma, hazır örnek veriler</div>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                    </div>
+                    <div class="accordion-content">
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                            Kayıtlarınızı ve eklediğiniz dekontları JSON formatında cihazınıza kaydedebilir veya istediğiniz zaman geri yükleyebilirsiniz.
+                        </p>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <button class="btn-secondary" id="btnExportJSON">
+                                <i data-lucide="download"></i> Verileri JSON Olarak Dışa Aktar (Yedekle)
+                            </button>
+
+                            <label class="btn-secondary" style="cursor: pointer; text-align: center; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                                <i data-lucide="upload"></i> JSON Dosyasından İçe Aktar (Geri Yükle)
+                                <input type="file" id="jsonFileInput" accept=".json" style="display: none;">
+                            </label>
+
+                            <button class="btn-secondary" id="btnSeedData">
+                                <i data-lucide="sparkles"></i> Hazır Örnek Verileri Yükle
+                            </button>
+
+                            <button class="btn-danger" id="btnClearData">
+                                <i data-lucide="trash-2"></i> Tüm Verileri Sıfırla
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Hakkında -->
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <div class="accordion-header-left">
+                            <div class="accordion-icon"><i data-lucide="info"></i></div>
+                            <div>
+                                <div class="accordion-title">Uygulama Hakkında</div>
+                                <div class="accordion-subtitle">Sürüm ve telif hakları bilgisi</div>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                    </div>
+                    <div class="accordion-content">
+                        <div style="text-align: center; padding: 10px 0;">
+                            <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;">
+                                Aylık Hesap Gelir-Gider Defteri
+                            </div>
+                            <div style="font-size: 0.88rem; font-weight: 600; color: var(--primary);">
+                                Oluşturan: HAKAN KORKMAZ
+                            </div>
+                            <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">
+                                Copyright 2026 - Tüm Hakları Saklıdır.
+                            </div>
+                            <div style="font-size: 0.72rem; color: var(--text-subtle); margin-top: 10px;">
+                                Sürüm 2.0 • Mobil Uyumlu • Çevrimdışı Güvenli Depolama
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Floating Action Button: Hızlı Ekle -->
+    <button class="fab-add" id="fabAddBtn" title="Yeni Fatura / Kayıt Ekle">
+        <i data-lucide="plus" style="width: 28px; height: 28px;"></i>
+    </button>
+
+    <!-- Sabit Alt Menü (Bottom Navigation Bar) -->
+    <!-- Sıralama zorunlu olarak: 1. Ana Sayfa, 2. Kayıtlar, 3. Analiz, 4. Ayarlar -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-tab="tab-home">
+            <i data-lucide="home"></i>
+            <span>Ana Sayfa</span>
+        </button>
+        <button class="nav-item" data-tab="tab-records">
+            <i data-lucide="receipt"></i>
+            <span>Kayıtlar</span>
+        </button>
+        <button class="nav-item" data-tab="tab-analysis">
+            <i data-lucide="pie-chart"></i>
+            <span>Analiz</span>
+        </button>
+        <button class="nav-item" data-tab="tab-settings">
+            <i data-lucide="settings"></i>
+            <span>Ayarlar</span>
+        </button>
+    </nav>
+
+    <!-- ==================== MODALLAR ==================== -->
+
+    <!-- 1. Kayıt Ekleme / Düzenleme Modalı -->
+    <div class="modal-overlay" id="recordModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalRecordTitle">
+                    <i data-lucide="plus-circle"></i>
+                    Yeni Kayıt Ekle
+                </h3>
+                <button class="icon-btn" id="btnCloseRecordModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="recordForm" onsubmit="return false;">
+                    <input type="hidden" id="recordId">
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Tür</label>
+                            <select id="formType" class="form-control">
+                                <option value="expense">Gider / Fatura / Borç</option>
+                                <option value="income">Gelir (Maaş vb.)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Kategori</label>
+                            <select id="formCategory" class="form-control">
+                                <option value="su">💧 Su Faturası</option>
+                                <option value="elektrik">⚡ Elektrik Faturası</option>
+                                <option value="internet">🌐 İnternet Faturası</option>
+                                <option value="dogalgaz">🔥 Doğalgaz Faturası</option>
+                                <option value="telefon">📱 Telefon Faturası</option>
+                                <option value="banka">🏦 Banka Borcu / Kart</option>
+                                <option value="taksit">💳 Taksit Gideri</option>
+                                <option value="gelir">💰 Gelir / Maaş</option>
+                                <option value="diger">🏷️ Diğer Giderler</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Kayıt Başlığı / Açıklama</label>
+                        <input type="text" id="formTitle" class="form-control" placeholder="Örn. Su Faturası (İSKİ) veya Buzdolabı" required>
+                    </div>
+
+                    <!-- Taksit Özel Alanları (Sadece taksit seçildiğinde aktif) -->
+                    <div id="installmentFields" style="display: none; background: var(--bg-body); padding: 12px; border-radius: 10px; border: 1px dashed var(--border-color);">
+                        <div class="form-group" style="margin-bottom: 8px;">
+                            <label class="form-label">Taksitlendirilmiş Ürün / Borç İsmi (Düzenlenebilir)</label>
+                            <input type="text" id="formInstallmentTitle" class="form-control" placeholder="Örn. MacBook Pro Taksiti">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Şu Anki Taksit</label>
+                                <input type="number" id="formInstallmentCurrent" class="form-control" min="1" value="1" placeholder="Örn. 3">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Toplam Taksit</label>
+                                <input type="number" id="formInstallmentTotal" class="form-control" min="1" value="12" placeholder="Örn. 12">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Tutar (₺)</label>
+                            <input type="number" id="formAmount" step="0.01" min="0" class="form-control" placeholder="0.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Son Ödeme / Vade Tarihi</label>
+                            <input type="date" id="formDueDate" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Ödeme Durumu</label>
+                        <select id="formIsPaid" class="form-control">
+                            <option value="false">Ödenmedi (Bekliyor)</option>
+                            <option value="true">Ödendi</option>
+                        </select>
+                    </div>
+
+                    <!-- Dekont Yükleme -->
+                    <div class="form-group">
+                        <label class="form-label">Fatura Dekontu (İsteğe Bağlı)</label>
+                        <div class="receipt-upload-box" id="receiptUploadBox">
+                            <input type="file" id="formReceiptInput" accept="image/*" style="display: none;">
+                            <div id="receiptUploadPlaceholder">
+                                <i data-lucide="image-plus" style="margin: 0 auto 6px auto; color: var(--primary);"></i>
+                                <div style="font-size: 0.84rem; font-weight: 600;">Dekont Görseli Seç veya Çek</div>
+                                <div style="font-size: 0.72rem; color: var(--text-muted);">Fotoğraf, JPG veya PNG yükleyebilirsiniz</div>
+                            </div>
+                            <div id="receiptPreviewContainer" style="display: none; position: relative;">
+                                <img id="receiptPreviewImg" class="receipt-preview-img" alt="Dekont Önizleme">
+                                <button type="button" class="btn-danger" id="btnRemoveReceipt" style="margin-top: 8px; padding: 4px 10px; font-size: 0.72rem;">
+                                    <i data-lucide="trash"></i> Dekontu Kaldır
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Ek Not</label>
+                        <input type="text" id="formNotes" class="form-control" placeholder="Örn. Otomatik ödeme talimatı verildi">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btnCancelRecordModal">İptal</button>
+                <button class="btn-primary" id="btnSaveRecord">
+                    <i data-lucide="check"></i> Kaydet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Ana Ekrandan Tıklanılan Ödeme Detay & Açılır Pencere Modalı -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3 class="modal-title" id="detailModalTitle">
+                    <span id="detailCatEmoji">📄</span>
+                    <span id="detailTitleText">Ödeme Detayı</span>
+                </h3>
+                <button class="icon-btn" id="btnCloseDetailModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="text-align: center; padding: 10px 0; border-bottom: 1px solid var(--border-color);">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Toplam Tutar</div>
+                    <div style="font-size: 2rem; font-weight: 800; color: var(--text-main);" id="detailAmount">₺0,00</div>
+                    <div id="detailStatusBadge" class="status-pill" style="margin-top: 6px; font-size: 0.8rem; padding: 4px 12px;">Ödenmedi</div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; padding: 6px 0;">
+                    <div class="setting-option-row">
+                        <span class="setting-label" style="color: var(--text-muted);">Kategori</span>
+                        <span style="font-weight: 600;" id="detailCategory">Su Faturası</span>
+                    </div>
+
+                    <div class="setting-option-row" id="detailInstallmentRow" style="display: none;">
+                        <span class="setting-label" style="color: var(--text-muted);">Taksit Durumu</span>
+                        <span style="font-weight: 600;" id="detailInstallmentInfo">3 / 12</span>
+                    </div>
+
+                    <div class="setting-option-row">
+                        <span class="setting-label" style="color: var(--text-muted);">Son Ödeme Tarihi</span>
+                        <span style="font-weight: 600;" id="detailDueDate">15.03.2026</span>
+                    </div>
+
+                    <div class="setting-option-row" id="detailNotesRow">
+                        <span class="setting-label" style="color: var(--text-muted);">Not</span>
+                        <span style="font-weight: 500;" id="detailNotes">-</span>
+                    </div>
+
+                    <!-- Dekont Alanı -->
+                    <div id="detailReceiptSection" style="display: none; margin-top: 8px;">
+                        <span class="form-label" style="margin-bottom: 6px; display: block;">Fatura Dekontu:</span>
+                        <div style="text-align: center; background: var(--bg-body); padding: 10px; border-radius: 10px;">
+                            <img id="detailReceiptImg" class="receipt-preview-img" alt="Dekont Görseli" title="Büyütmek için tıklayın">
+                            <span style="display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">(Görseli büyütmek için üzerine tıklayın)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button class="btn-secondary" id="btnTogglePayStatus">
+                    <i data-lucide="check-circle" id="detailPayToggleIcon"></i>
+                    <span id="detailPayToggleText">Ödendi Olarak İşaretle</span>
+                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-secondary" id="btnGoToRecord" title="Kayıtlarda Aç ve Düzenle">
+                        <i data-lucide="edit"></i> Düzenle
+                    </button>
+                    <button class="btn-danger" id="btnDeleteDetailRecord" title="Kaydı Sil">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Dekont Tam Ekran Görsel Büyütme (Lightbox) -->
+    <div class="lightbox-modal" id="lightboxModal">
+        <button class="lightbox-close" id="btnCloseLightbox">
+            <i data-lucide="x"></i>
+        </button>
+        <img id="lightboxImg" class="lightbox-img" alt="Büyütülmüş Dekont">
+    </div>
+
+    <!-- Uygulama Betikleri -->
+    <script src="js/db.js"></script>
+    <script src="js/analytics.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

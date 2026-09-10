@@ -1,0 +1,18 @@
+{
+  "name": "Aylık Hesap Gelir-Gider Defteri",
+  "short_name": "Gelir-Gider",
+  "description": "Ev ve kişisel bütçe, fatura ve taksit takip defteri",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090d16",
+  "theme_color": "#10b981",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
