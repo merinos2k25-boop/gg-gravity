@@ -1547,3 +1547,154 @@ body {
         padding: 6px 8px;
     }
 }
+
+/* ==================== GOOGLE DRIVE & CLOUD SYNC ==================== */
+.btn-google {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: 24px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 10px 20px;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
+    width: 100%;
+    max-width: 260px;
+}
+
+.btn-google:hover {
+    background: #f8f9fa;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+[data-theme="dark"] .btn-google {
+    background: #242b38;
+    color: #e2e8f0;
+    border-color: #374151;
+}
+
+[data-theme="dark"] .btn-google:hover {
+    background: #2d3748;
+}
+
+.gdrive-profile-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-body);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.gdrive-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary);
+    background: var(--border-color);
+}
+
+.gdrive-user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.gdrive-user-name {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gdrive-user-email {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gdrive-sync-time {
+    font-size: 0.7rem;
+    color: var(--primary);
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+.btn-icon-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: none;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.btn-icon-danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    transform: scale(1.05);
+}
+
+/* Switch Toggle Bileşeni */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border-color);
+    transition: 0.25s ease;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.25s ease;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+input:checked + .slider {
+    background-color: var(--primary);
+}
+
+input:checked + .slider:before {
+    transform: translateX(22px);
+}
+

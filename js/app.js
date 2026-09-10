@@ -4,6 +4,7 @@
  */
 (function () {
     const DB = window.DB;
+    const GoogleDrive = window.GoogleDrive || null;
     const Analytics = window.Analytics || {};
     const calculateMonthlyAnalytics = Analytics.calculateMonthlyAnalytics || (() => ({ monthlyTx: [], totalIncome: 0, totalExpense: 0, totalBills: 0, totalInstallments: 0, totalBankDebts: 0, totalOtherExpenses: 0, totalPaidExpenses: 0, totalUnpaidExpenses: 0, netSavings: 0 }));
     const renderCharts = Analytics.renderCharts || (() => {});
@@ -44,6 +45,7 @@ async function initApp() {
         setupEventListeners();
         setupAccordions();
         setupYearMonthSelectors();
+        setupGoogleDriveUI();
 
         // 2. Ayarları ve Verileri Yükle
         try {
@@ -524,6 +526,7 @@ function createRecordListItem(tx) {
         await DB.saveTransaction(tx);
         await loadData();
         renderAll();
+        triggerAutoSync();
     });
 
     // Dekont Tag'i Tıklandığında Doğrudan Lightbox Açma
@@ -550,6 +553,7 @@ function createRecordListItem(tx) {
             await DB.deleteTransaction(tx.id);
             await loadData();
             renderAll();
+            triggerAutoSync();
         }
     });
 
@@ -845,6 +849,253 @@ function setupAccordions() {
     }
 }
 
+// ==================== GOOGLE DRIVE & BULUT SENKRONİZASYONU ====================
+function triggerAutoSync() {
+    if (window.GoogleDrive && GoogleDrive.isSignedIn() && GoogleDrive.isAutoSyncEnabled()) {
+        GoogleDrive.syncToDrive()
+            .then(res => {
+                if (res && res.time) {
+                    updateGDriveUIState();
+                }
+            })
+            .catch(err => {
+                console.warn('Otomatik senkronizasyon uyarısı:', err);
+            });
+    }
+}
+
+function updateGDriveUIState() {
+    if (!window.GoogleDrive) return;
+    const user = GoogleDrive.getUserInfo();
+    const lastSync = GoogleDrive.getLastSyncTime();
+    const isAutoSync = GoogleDrive.isAutoSyncEnabled();
+
+    const loggedOutView = document.getElementById('gdriveLoggedOutView');
+    const loggedInView = document.getElementById('gdriveLoggedInView');
+    const userName = document.getElementById('gdriveUserName');
+    const userEmail = document.getElementById('gdriveUserEmail');
+    const userAvatar = document.getElementById('gdriveUserAvatar');
+    const lastSyncText = document.getElementById('gdriveLastSyncText');
+    const toggleAutoSync = document.getElementById('toggleAutoSync');
+    const statusSubtitle = document.getElementById('gdriveStatusSubtitle');
+    const headerCloudBtn = document.getElementById('btnHeaderCloudSync');
+
+    if (toggleAutoSync) {
+        toggleAutoSync.checked = isAutoSync;
+    }
+
+    if (user) {
+        if (loggedOutView) loggedOutView.style.display = 'none';
+        if (loggedInView) loggedInView.style.display = 'block';
+        if (userName) userName.textContent = user.name || 'Google Kullanıcısı';
+        if (userEmail) userEmail.textContent = user.email || '';
+        if (userAvatar) {
+            userAvatar.src = user.picture || 'icon.svg';
+        }
+        if (lastSyncText) {
+            lastSyncText.textContent = lastSync ? `Son Yedekleme: ${lastSync}` : 'Son Yedekleme: Henüz yok';
+        }
+        if (statusSubtitle) {
+            statusSubtitle.textContent = `Bağlı: ${user.email}`;
+            statusSubtitle.style.color = 'var(--primary)';
+        }
+        if (headerCloudBtn) {
+            headerCloudBtn.title = `Buluta Bağlı (${user.email}) - Yedeklemek için tıklayın`;
+            headerCloudBtn.style.color = 'var(--primary)';
+        }
+    } else {
+        if (loggedOutView) loggedOutView.style.display = 'block';
+        if (loggedInView) loggedInView.style.display = 'none';
+        if (statusSubtitle) {
+            statusSubtitle.textContent = 'Kişisel Google hesabınızla bulut veri senkronizasyonu';
+            statusSubtitle.style.color = 'var(--text-muted)';
+        }
+        if (headerCloudBtn) {
+            headerCloudBtn.title = 'Google Drive Senkronizasyonu';
+            headerCloudBtn.style.color = 'var(--text-muted)';
+        }
+    }
+}
+
+function setupGoogleDriveUI() {
+    if (!window.GoogleDrive) return;
+
+    const inputClientId = document.getElementById('inputGoogleClientId');
+    const btnSaveClientId = document.getElementById('btnSaveGoogleClientId');
+    const btnOpenGuide = document.getElementById('btnOpenGDriveGuideModal');
+    const guideModal = document.getElementById('gdriveGuideModal');
+    const btnCloseGuide = document.getElementById('btnCloseGDriveGuideModal');
+    const btnConfirmGuide = document.getElementById('btnConfirmGDriveGuideModal');
+    const btnSignIn = document.getElementById('btnGoogleSignIn');
+    const btnSignOut = document.getElementById('btnGoogleSignOut');
+    const btnSync = document.getElementById('btnSyncToDrive');
+    const btnRestore = document.getElementById('btnRestoreFromDrive');
+    const toggleAutoSync = document.getElementById('toggleAutoSync');
+    const headerCloudBtn = document.getElementById('btnHeaderCloudSync');
+
+    // Kayıtlı Client ID'yi kutuya koy
+    if (inputClientId) {
+        inputClientId.value = GoogleDrive.getClientId();
+    }
+
+    // Client ID Kaydet
+    if (btnSaveClientId && inputClientId) {
+        btnSaveClientId.addEventListener('click', () => {
+            const val = inputClientId.value.trim();
+            if (!val) {
+                alert('Lütfen geçerli bir Google OAuth Client ID giriniz.');
+                return;
+            }
+            GoogleDrive.setClientId(val);
+            alert('Google Client ID başarıyla kaydedildi! Şimdi Google ile Giriş Yapabilirsiniz.');
+        });
+    }
+
+    // Rehber Modalı Aç/Kapat
+    if (btnOpenGuide && guideModal) {
+        btnOpenGuide.addEventListener('click', () => guideModal.classList.add('active'));
+    }
+    if (btnCloseGuide && guideModal) {
+        btnCloseGuide.addEventListener('click', () => guideModal.classList.remove('active'));
+    }
+    if (btnConfirmGuide && guideModal) {
+        btnConfirmGuide.addEventListener('click', () => guideModal.classList.remove('active'));
+    }
+
+    // Google ile Giriş Yap
+    if (btnSignIn) {
+        btnSignIn.addEventListener('click', async () => {
+            const clientId = GoogleDrive.getClientId();
+            if (!clientId) {
+                alert('Lütfen önce yukarıdaki alana Google OAuth Client ID bilginizi girip "Kaydet"e basınız!\n\n(Rehbere tıklayarak 2 dakikada ücretsiz nasıl alacağınızı görebilirsiniz)');
+                inputClientId?.focus();
+                return;
+            }
+
+            try {
+                btnSignIn.disabled = true;
+                btnSignIn.textContent = 'Giriş yapılıyor...';
+                await GoogleDrive.signIn();
+                updateGDriveUIState();
+                alert('Google hesabınızla başarıyla oturum açıldı! Artık verilerinizi Drive\'a yedekleyebilirsiniz.');
+            } catch (err) {
+                console.error('Giriş hatası:', err);
+                alert('Google ile giriş yapılamadı: ' + (err.message || err));
+            } finally {
+                btnSignIn.disabled = false;
+                btnSignIn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" style="margin-right: 8px;">
+                        <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                        <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                        <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                        <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                    </svg>
+                    <span>Google ile Giriş Yap</span>
+                `;
+            }
+        });
+    }
+
+    // Google Çıkış Yap
+    if (btnSignOut) {
+        btnSignOut.addEventListener('click', () => {
+            if (confirm('Google oturumunu kapatmak istediğinize emin misiniz?')) {
+                GoogleDrive.signOut();
+                updateGDriveUIState();
+                alert('Google oturumu kapatıldı.');
+            }
+        });
+    }
+
+    // Otomatik Senkronizasyon Değişimi
+    if (toggleAutoSync) {
+        toggleAutoSync.addEventListener('change', (e) => {
+            GoogleDrive.setAutoSync(e.target.checked);
+        });
+    }
+
+    // Şimdi Yedekle
+    if (btnSync) {
+        btnSync.addEventListener('click', async () => {
+            try {
+                btnSync.disabled = true;
+                btnSync.innerHTML = '<i data-lucide="loader-2"></i> Drive\'a Yedekleniyor...';
+                if (window.lucide) lucide.createIcons();
+
+                await GoogleDrive.syncToDrive();
+                updateGDriveUIState();
+                alert('✓ Harika! Tüm verileriniz ve dekontlarınız Google Drive\'daki "Gelir-Gider Defteri (Bulut Yedekleri)" klasörüne başarıyla yüklendi!');
+            } catch (err) {
+                console.error('Yedekleme hatası:', err);
+                alert('Yedekleme sırasında hata oluştu: ' + (err.message || err));
+            } finally {
+                btnSync.disabled = false;
+                btnSync.innerHTML = '<i data-lucide="cloud-upload"></i> Verileri Şimdi Drive\'a Yedekle';
+                if (window.lucide) lucide.createIcons();
+            }
+        });
+    }
+
+    // Drive'dan Geri Yükle
+    if (btnRestore) {
+        btnRestore.addEventListener('click', async () => {
+            if (!confirm('DİKKAT: Google Drive\'daki en güncel yedek indirilecek ve mevcut cihazınızdaki kayıtlar güncellenecektir. Onaylıyor musunuz?')) {
+                return;
+            }
+
+            try {
+                btnRestore.disabled = true;
+                btnRestore.innerHTML = '<i data-lucide="loader-2"></i> Drive\'dan İndiriliyor...';
+                if (window.lucide) lucide.createIcons();
+
+                await GoogleDrive.restoreFromDrive();
+                await initSettings();
+                await loadData();
+                setupYearMonthSelectors();
+                renderAll();
+                updateGDriveUIState();
+                alert('✓ Başarılı! Google Drive\'daki yedek verileriniz yerel veritabanına aktarıldı ve uygulama güncellendi.');
+            } catch (err) {
+                console.error('Geri yükleme hatası:', err);
+                alert('Geri yükleme hatası: ' + (err.message || err));
+            } finally {
+                btnRestore.disabled = false;
+                btnRestore.innerHTML = '<i data-lucide="cloud-download"></i> Drive\'daki Yedekten Geri Yükle';
+                if (window.lucide) lucide.createIcons();
+            }
+        });
+    }
+
+    // Header Bulut Butonu
+    if (headerCloudBtn) {
+        headerCloudBtn.addEventListener('click', async () => {
+            if (GoogleDrive.isSignedIn()) {
+                try {
+                    headerCloudBtn.style.opacity = '0.5';
+                    await GoogleDrive.syncToDrive();
+                    updateGDriveUIState();
+                    alert('✓ Google Drive senkronizasyonu tamamlandı!');
+                } catch (e) {
+                    alert('Senkronizasyon hatası: ' + e.message);
+                } finally {
+                    headerCloudBtn.style.opacity = '1';
+                }
+            } else {
+                // Ayarlar sekmesine geç ve Google Drive akordiyonunu aç
+                switchTab('tab-settings');
+                const gdriveAccordion = document.getElementById('accordionGoogleDrive');
+                if (gdriveAccordion && !gdriveAccordion.classList.contains('open')) {
+                    gdriveAccordion.classList.add('open');
+                }
+                gdriveAccordion?.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    }
+
+    // Başlangıç durumunu uygula
+    updateGDriveUIState();
+}
+
 // ==================== NAVİGASYON & ETKİLEŞİM ====================
 function setupNavigation() {
     const navItems = document.querySelectorAll('.nav-item');
@@ -1046,6 +1297,7 @@ function setupModals() {
             await loadData();
             setupYearMonthSelectors();
             renderAll();
+            triggerAutoSync();
         });
     }
 
@@ -1067,6 +1319,7 @@ function setupModals() {
             await loadData();
             openDetailModal(AppState.currentDetailTx); // Güncel haliyle tekrar aç
             renderAll();
+            triggerAutoSync();
         });
     }
 
@@ -1087,6 +1340,7 @@ function setupModals() {
                 closeDetailModal();
                 await loadData();
                 renderAll();
+                triggerAutoSync();
             }
         });
     }

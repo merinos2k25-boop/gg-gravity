@@ -23,6 +23,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Google Identity Services (GIS) -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <!-- Stil Dosyası -->
     <link rel="stylesheet" href="css/style.css">
@@ -42,6 +44,9 @@
                 </div>
             </div>
             <div class="header-actions">
+                <button class="icon-btn" id="btnHeaderCloudSync" title="Google Drive Bulut Senkronizasyonu">
+                    <i data-lucide="cloud" id="headerCloudIcon"></i>
+                </button>
                 <button class="icon-btn" id="btnQuickAdd" title="Yeni Kayıt Ekle">
                     <i data-lucide="plus"></i>
                 </button>
@@ -364,7 +369,97 @@
                     </div>
                 </div>
 
-                <!-- 2. Veri Yönetimi & JSON Yedekleme -->
+                <!-- 2. Google Drive Bulut Senkronizasyonu (15 GB Kişisel Alan) -->
+                <div class="accordion-item" id="accordionGoogleDrive">
+                    <div class="accordion-header">
+                        <div class="accordion-header-left">
+                            <div class="accordion-icon" style="background: rgba(66, 133, 244, 0.15); color: #4285F4;"><i data-lucide="cloud"></i></div>
+                            <div>
+                                <div class="accordion-title" style="display: flex; align-items: center; gap: 6px;">
+                                    Google Drive Yedekleme
+                                    <span class="badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 0.68rem; padding: 2px 6px;">15 GB Ücretsiz</span>
+                                </div>
+                                <div class="accordion-subtitle" id="gdriveStatusSubtitle">Kişisel Google hesabınızla bulut veri senkronizasyonu</div>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-down" class="accordion-chevron"></i>
+                    </div>
+                    <div class="accordion-content">
+                        <!-- Client ID Yapılandırması -->
+                        <div id="gdriveConfigSection" style="margin-bottom: 14px; background: var(--bg-body); padding: 12px; border-radius: 10px; border: 1px solid var(--border-color);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <label class="form-label" style="margin-bottom: 0; font-weight: 700;">Google OAuth Client ID</label>
+                                <a href="javascript:void(0)" id="btnOpenGDriveGuideModal" style="font-size: 0.72rem; color: var(--primary); font-weight: 600; text-decoration: underline;">
+                                    Nasıl Alınır? (Rehber)
+                                </a>
+                            </div>
+                            <p style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 8px;">
+                                Kişisel Google hesabınızla güvenli bağlantı için Google Cloud Console'dan aldığınız ücretsiz İstemci Kimliği (Client ID).
+                            </p>
+                            <div style="display: flex; gap: 6px;">
+                                <input type="text" id="inputGoogleClientId" class="form-control" style="font-size: 0.8rem; font-family: monospace;" placeholder="xxxxxx-xxxxxx.apps.googleusercontent.com">
+                                <button class="btn-primary" id="btnSaveGoogleClientId" style="white-space: nowrap; padding: 6px 12px; font-size: 0.78rem;">
+                                    <i data-lucide="check"></i> Kaydet
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Giriş Yapılmamış Durum -->
+                        <div id="gdriveLoggedOutView" style="display: block; text-align: center; padding: 10px 0;">
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                                Verilerinizi ve fatura dekontlarınızı kendi Google Drive'ınızda güvenle saklamak için oturum açın.
+                            </p>
+                            <button type="button" class="btn-google" id="btnGoogleSignIn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" style="margin-right: 8px;">
+                                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                                </svg>
+                                <span>Google ile Giriş Yap</span>
+                            </button>
+                        </div>
+
+                        <!-- Giriş Yapılmış Durum -->
+                        <div id="gdriveLoggedInView" style="display: none;">
+                            <div class="gdrive-profile-card">
+                                <img id="gdriveUserAvatar" src="" alt="Google Profil" class="gdrive-avatar">
+                                <div class="gdrive-user-info">
+                                    <div class="gdrive-user-name" id="gdriveUserName">Kullanıcı</div>
+                                    <div class="gdrive-user-email" id="gdriveUserEmail">kullanici@gmail.com</div>
+                                    <div class="gdrive-sync-time" id="gdriveLastSyncText">Son Yedekleme: Henüz yok</div>
+                                </div>
+                                <button class="btn-icon-danger" id="btnGoogleSignOut" title="Çıkış Yap">
+                                    <i data-lucide="log-out"></i>
+                                </button>
+                            </div>
+
+                            <!-- Otomatik Senkronizasyon Aç/Kapat -->
+                            <div class="setting-option-row" style="margin: 12px 0 16px 0;">
+                                <div>
+                                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-main);">Otomatik Senkronizasyon</div>
+                                    <div style="font-size: 0.72rem; color: var(--text-muted);">Yeni kayıt eklediğinizde veya sildiğinizde buluta otomatik yedekler</div>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="toggleAutoSync" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+
+                            <!-- Manuel Butonlar -->
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <button class="btn-primary" id="btnSyncToDrive">
+                                    <i data-lucide="cloud-upload"></i> Verileri Şimdi Drive'a Yedekle
+                                </button>
+                                <button class="btn-secondary" id="btnRestoreFromDrive">
+                                    <i data-lucide="cloud-download"></i> Drive'daki Yedekten Geri Yükle
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Veri Yönetimi & JSON Yedekleme -->
                 <div class="accordion-item">
                     <div class="accordion-header">
                         <div class="accordion-header-left">
@@ -654,9 +749,69 @@
         <img id="lightboxImg" class="lightbox-img" alt="Büyütülmüş Dekont">
     </div>
 
+    <!-- 4. Google Drive Kurulum Yardım Modalı -->
+    <div class="modal-overlay" id="gdriveGuideModal">
+        <div class="modal-container" style="max-width: 540px;">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i data-lucide="help-circle"></i>
+                    Google Drive Kurulum Rehberi
+                </h3>
+                <button class="icon-btn" id="btnCloseGDriveGuideModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="font-size: 0.85rem; line-height: 1.55; color: var(--text-main);">
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; color: #059669; font-size: 0.8rem; font-weight: 600;">
+                    ✓ %100 ÜCRETSİZ: Google Cloud Console'da OAuth Client ID oluşturmak tamamen ücretsizdir ve kredi kartı gerektirmez. Kişisel Google hesabınızın 15 GB kotasını kullanır.
+                </div>
+
+                <p style="margin-bottom: 10px; font-weight: 600;">2 Dakikada İstemci Kimliği (Client ID) Alma:</p>
+
+                <ol style="padding-left: 18px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px;">
+                    <li>
+                        <strong>Google Cloud Console'a gidin:</strong><br>
+                        <a href="https://console.cloud.google.com/" target="_blank" rel="noopener" style="color: var(--primary); text-decoration: underline;">console.cloud.google.com</a> adresini açıp Google hesabınızla giriş yapın.
+                    </li>
+                    <li>
+                        <strong>Yeni Proje Açın:</strong><br>
+                        Üst menüden "Yeni Proje" (New Project) butonuna tıklayıp projeye örneğin <code>Gelir Gider Defterim</code> adını verin.
+                    </li>
+                    <li>
+                        <strong>Google Drive API'yi Etkinleştirin:</strong><br>
+                        Arama çubuğuna <code>Google Drive API</code> yazın ve <strong>"Etkinleştir" (Enable)</strong> butonuna basın.
+                    </li>
+                    <li>
+                        <strong>OAuth İzin Ekranını Yapılandırın:</strong><br>
+                        Sol menüden <em>API'ler ve Hizmetler &gt; OAuth İzin Ekranı</em> bölümüne gidin. Kullanıcı türünü <strong>Harici (External)</strong> seçin. Uygulama adı ve e-postanızı yazıp kaydedin. (Test aşamasında kendi Gmail adresinizi "Test Kullanıcıları"na ekleyin).
+                    </li>
+                    <li>
+                        <strong>Kimlik Bilgisi (Client ID) Oluşturun:</strong><br>
+                        <em>Kimlik Bilgileri (Credentials) &gt; + Kimlik Bilgisi Oluştur &gt; OAuth İstemci Kimliği</em> seçin.<br>
+                        Uygulama Türü: <strong>Web Uygulaması</strong>.<br>
+                        <strong>Yetkili JavaScript Kaynakları</strong> kısmına uygulamanızın çalıştığı adresi ekleyin:<br>
+                        • <code>http://localhost:3000</code> veya <code>http://localhost:5500</code><br>
+                        • Vercel siteniz: <code>https://sizin-uygulamaniz.vercel.app</code>
+                    </li>
+                    <li>
+                        <strong>Kodu Kopyalayın ve Buraya Yapıştırın:</strong><br>
+                        Oluşturulan <code>xxxxxx.apps.googleusercontent.com</code> kodunu kopyalayıp uygulamadaki "Google OAuth Client ID" kutusuna yapıştırın ve <strong>Kaydet</strong>'e basın!
+                    </li>
+                </ol>
+                <div style="font-size: 0.76rem; color: var(--text-muted); background: var(--bg-body); padding: 8px 12px; border-radius: 6px;">
+                    💡 Verileriniz doğrudan sizin kendi Google Drive'ınızda <strong>"Gelir-Gider Defteri (Bulut Yedekleri)"</strong> klasöründe saklanır, hiçbir üçüncü taraf sunucuya gitmez.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primary" id="btnConfirmGDriveGuideModal" style="width: 100%;">Anladım</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Uygulama Betikleri -->
     <script src="js/db.js"></script>
     <script src="js/analytics.js"></script>
+    <script src="js/google-drive.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
