@@ -2,9 +2,9 @@
  * Aylık Hesap Gelir-Gider Defteri - Analiz ve Grafik Modülü
  * Oluşturan: Hakan Korkmaz (c) 2026
  */
-
-let categoryChartInstance = null;
-let paidUnpaidChartInstance = null;
+(function () {
+    let categoryChartInstance = null;
+    let paidUnpaidChartInstance = null;
 
 // Fatura kategorileri listesi
 const BILL_CATEGORIES = ['su', 'elektrik', 'internet', 'dogalgaz', 'telefon'];
@@ -209,8 +209,9 @@ function renderCharts(analyticsData, isDarkMode) {
     }
 }
 
-window.Analytics = {
-    calculateMonthlyAnalytics,
-    renderCharts,
-    BILL_CATEGORIES
-};
+    window.Analytics = {
+        calculateMonthlyAnalytics,
+        renderCharts,
+        BILL_CATEGORIES
+    };
+})();

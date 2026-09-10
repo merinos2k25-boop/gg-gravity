@@ -2,9 +2,12 @@
  * Aylık Hesap Gelir-Gider Defteri - Ana Uygulama Mantığı
  * Oluşturan: Hakan Korkmaz (c) 2026
  */
-
-const DB = window.DB;
-const { calculateMonthlyAnalytics, renderCharts, BILL_CATEGORIES } = window.Analytics;
+(function () {
+    const DB = window.DB;
+    const Analytics = window.Analytics || {};
+    const calculateMonthlyAnalytics = Analytics.calculateMonthlyAnalytics || (() => ({ monthlyTx: [], totalIncome: 0, totalExpense: 0, totalBills: 0, totalInstallments: 0, totalBankDebts: 0, totalOtherExpenses: 0, totalPaidExpenses: 0, totalUnpaidExpenses: 0, netSavings: 0 }));
+    const renderCharts = Analytics.renderCharts || (() => {});
+    const BILL_CATEGORIES = Analytics.BILL_CATEGORIES || ['su', 'elektrik', 'internet', 'dogalgaz', 'telefon'];
 
 // Kategori Tanımları & İkon Eşleştirmeleri
 const CATEGORY_META = {
@@ -32,33 +35,48 @@ const AppState = {
     tempReceiptDataUrl: null
 };
 
-// DOM Yüklendiğinde Başlat
-document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Ayarları ve Verileri Yükle
-    await initSettings();
-    await loadData();
+// Uygulamayı Başlat
+async function initApp() {
+    try {
+        // 1. Önce TÜM buton ve gezinme olaylarını derhal bağla
+        setupNavigation();
+        setupModals();
+        setupEventListeners();
+        setupAccordions();
+        setupYearMonthSelectors();
 
-    // 2. İlk Kurulum Kontrolü (Veri yoksa otomatik örnek veri yükleme)
-    if (AppState.transactions.length === 0) {
-        await DB.seedSampleData();
-        await loadData();
+        // 2. Ayarları ve Verileri Yükle
+        try {
+            await initSettings();
+            await loadData();
+
+            // İlk Kurulum Kontrolü (Veri yoksa otomatik örnek veri yükleme)
+            if (AppState.transactions.length === 0) {
+                await DB.seedSampleData();
+                await loadData();
+            }
+        } catch (storageErr) {
+            console.warn('Depolama başlatma uyarısı:', storageErr);
+        }
+
+        // 3. Arayüzü Çiz
+        renderAll();
+
+        // 4. Lucide ikonlarını oluştur
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    } catch (e) {
+        console.error('Uygulama başlatma hatası:', e);
     }
+}
 
-    // 3. UI Bileşenlerini Hazırla
-    setupNavigation();
-    setupModals();
-    setupEventListeners();
-    setupAccordions();
-    setupYearMonthSelectors();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
 
-    // 4. Arayüzü Çiz
-    renderAll();
-    
-    // Lucide ikonlarını oluştur
-    if (window.lucide) {
-        lucide.createIcons();
-    }
-});
 
 // Ayarların Yüklenmesi ve Uygulanması
 async function initSettings() {
@@ -524,8 +542,8 @@ function setupAccordions() {
     if (darkSelect) {
         darkSelect.addEventListener('change', async (e) => {
             AppState.settings.darkMode = e.target.value;
-            await DB.saveSettings(AppState.settings);
             applyThemeMode(AppState.settings.darkMode);
+            await DB.saveSettings(AppState.settings);
         });
     }
 
@@ -534,8 +552,8 @@ function setupAccordions() {
         dot.addEventListener('click', async () => {
             const color = dot.getAttribute('data-color');
             AppState.settings.themeColor = color;
-            await DB.saveSettings(AppState.settings);
             applySettingsToDOM(AppState.settings);
+            await DB.saveSettings(AppState.settings);
         });
     });
 
@@ -544,8 +562,8 @@ function setupAccordions() {
     if (fontSelect) {
         fontSelect.addEventListener('change', async (e) => {
             AppState.settings.fontFamily = e.target.value;
-            await DB.saveSettings(AppState.settings);
             applySettingsToDOM(AppState.settings);
+            await DB.saveSettings(AppState.settings);
         });
     }
 
@@ -670,10 +688,10 @@ function setupEventListeners() {
             const isDark = document.body.classList.contains('dark');
             const newMode = isDark ? 'light' : 'dark';
             AppState.settings.darkMode = newMode;
-            await DB.saveSettings(AppState.settings);
             applyThemeMode(newMode);
             const darkSelect = document.getElementById('settingDarkMode');
             if (darkSelect) darkSelect.value = newMode;
+            await DB.saveSettings(AppState.settings);
         });
     }
 
@@ -1096,3 +1114,5 @@ function getDueStatus(dueDateStr, isPaid) {
         };
     }
 }
+})();
+

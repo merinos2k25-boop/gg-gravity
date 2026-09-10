@@ -2,8 +2,8 @@
  * Aylık Hesap Gelir-Gider Defteri - Veri Depolama Katmanı (IndexedDB & Fallback)
  * Oluşturan: Hakan Korkmaz (c) 2026
  */
-
-const DB_NAME = 'GelirGiderDefteriDB';
+(function () {
+    const DB_NAME = 'GelirGiderDefteriDB';
 const DB_VERSION = 1;
 const STORE_TRANSACTIONS = 'transactions';
 const STORE_SETTINGS = 'settings';
@@ -405,4 +405,5 @@ const DB = {
     }
 };
 
-window.DB = DB;
+    window.DB = DB;
+})();
