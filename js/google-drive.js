@@ -6,7 +6,7 @@
 
 (function () {
     const DRIVE_FILE_NAME = 'gelir_gider_veriler.json';
-    const FOLDER_NAME = 'Gelir-Gider Defteri (Bulut Yedekleri)';
+    const FOLDER_NAME = 'Gelir-Gider Defteri Yedekleri';
     const SCOPES = 'https://www.googleapis.com/auth/drive.file email profile openid';
 
     let tokenClient = null;
@@ -20,6 +20,8 @@
     const LS_ACCESS_TOKEN = 'gdrive_access_token';
     const LS_TOKEN_EXPIRY = 'gdrive_token_expiry';
     const LS_IS_LOGGED_IN = 'gdrive_is_logged_in';
+    const LS_FOLDER_ID = 'gdrive_folder_id';
+    const LS_FILE_ID = 'gdrive_file_id';
 
     // Sayfa açılışında belleğe yükle
     let accessToken = localStorage.getItem(LS_ACCESS_TOKEN) || null;
@@ -29,6 +31,42 @@
         const rawUser = localStorage.getItem(LS_USER_INFO);
         if (rawUser) currentUser = JSON.parse(rawUser);
     } catch (e) {}
+
+    // Yetkili Fetch Yardımcısı: 401 durumunda token yeniler ve hata detaylarını net olarak ayrıştırır
+    async function fetchWithAuth(url, options = {}) {
+        let token = await GoogleDrive.ensureAccessToken();
+        options.headers = options.headers || {};
+        options.headers['Authorization'] = `Bearer ${token}`;
+
+        let res = await fetch(url, options);
+
+        // Token geçersiz veya süresi dolmuşsa (401), sessizce token'ı yenileyip bir kez daha dene
+        if (res.status === 401) {
+            console.warn('Google Access Token 401 döndü, token yenileniyor...');
+            try {
+                token = await GoogleDrive.refreshToken();
+                options.headers['Authorization'] = `Bearer ${token}`;
+                res = await fetch(url, options);
+            } catch (refreshErr) {
+                throw new Error('Google oturumunuzun süresi doldu. Lütfen önce "Google ile Giriş Yap" butonuna basarak tekrar oturum açın.');
+            }
+        }
+
+        if (!res.ok) {
+            let errMessage = '';
+            try {
+                const errJson = await res.json();
+                if (errJson && errJson.error) {
+                    errMessage = errJson.error.message || JSON.stringify(errJson.error);
+                }
+            } catch (e) {
+                errMessage = res.statusText;
+            }
+            throw new Error(`Google Drive Hatası (${res.status}): ${errMessage || 'İşlem gerçekleştirilemedi.'}`);
+        }
+
+        return res;
+    }
 
     const GoogleDrive = {
         getClientId() {
@@ -153,6 +191,21 @@
             });
         },
 
+        // Token Yenileme (Sessiz)
+        refreshToken() {
+            return new Promise((resolve, reject) => {
+                try {
+                    this.initTokenClient((err) => {
+                        if (err) reject(err);
+                        else resolve(accessToken);
+                    });
+                    tokenClient.requestAccessToken({ prompt: '' });
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        },
+
         // Oturumu Kapat
         signOut() {
             if (accessToken && window.google && window.google.accounts && window.google.accounts.oauth2) {
@@ -169,6 +222,8 @@
             localStorage.removeItem(LS_ACCESS_TOKEN);
             localStorage.removeItem(LS_TOKEN_EXPIRY);
             localStorage.removeItem(LS_USER_INFO);
+            localStorage.removeItem(LS_FOLDER_ID);
+            localStorage.removeItem(LS_FILE_ID);
         },
 
         // Token Geçerliliğini Sağla (Gerekiyorsa sessizce yenile)
@@ -235,30 +290,37 @@
 
         // Google Drive'da Uygulama Klasörünü Bul veya Oluştur
         async getOrCreateFolder() {
-            const token = await this.ensureAccessToken();
+            // 1. Önce localStorage'da kayıtlı folderId var mı ve geçerli mi bakalım
+            const cachedFolderId = localStorage.getItem(LS_FOLDER_ID);
+            if (cachedFolderId) {
+                try {
+                    const checkRes = await fetchWithAuth(`https://www.googleapis.com/drive/v3/files/${cachedFolderId}?fields=id,trashed`);
+                    const checkData = await checkRes.json();
+                    if (checkData && !checkData.trashed) {
+                        return cachedFolderId;
+                    }
+                } catch (e) {
+                    localStorage.removeItem(LS_FOLDER_ID);
+                }
+            }
 
-            // Klasör var mı kontrol et
+            // 2. Klasör var mı ara
             const q = `name = '${FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
-            const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id, name)`;
+            const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&spaces=drive&fields=files(id, name)`;
 
-            const res = await fetch(searchUrl, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (!res.ok) {
-                throw new Error('Google Drive dosyaları aranamadı: ' + res.statusText);
-            }
-
+            const res = await fetchWithAuth(searchUrl);
             const data = await res.json();
+
             if (data.files && data.files.length > 0) {
-                return data.files[0].id;
+                const folderId = data.files[0].id;
+                localStorage.setItem(LS_FOLDER_ID, folderId);
+                return folderId;
             }
 
-            // Yoksa yeni klasör oluştur
-            const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+            // 3. Yoksa yeni klasör oluştur
+            const createRes = await fetchWithAuth('https://www.googleapis.com/drive/v3/files', {
                 method: 'POST',
                 headers: {
-                    Authorization: `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
@@ -267,27 +329,58 @@
                 })
             });
 
-            if (!createRes.ok) {
-                throw new Error('Drive üzerinde klasör oluşturulamadı.');
-            }
-
             const folder = await createRes.json();
-            return folder.id;
+            if (folder && folder.id) {
+                localStorage.setItem(LS_FOLDER_ID, folder.id);
+                return folder.id;
+            }
+            throw new Error('Drive üzerinde klasör oluşturulamadı.');
         },
 
         // Mevcut Veritabanı Dosyasını Bul
         async findDatabaseFile(folderId) {
-            const token = await this.ensureAccessToken();
-            const q = `'${folderId}' in parents and name = '${DRIVE_FILE_NAME}' and trashed = false`;
-            const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id, name, modifiedTime)`;
+            // 1. Önce localStorage'da kayıtlı fileId var mı ve geçerli mi bakalım
+            const cachedFileId = localStorage.getItem(LS_FILE_ID);
+            if (cachedFileId) {
+                try {
+                    const checkRes = await fetchWithAuth(`https://www.googleapis.com/drive/v3/files/${cachedFileId}?fields=id,name,trashed`);
+                    const checkData = await checkRes.json();
+                    if (checkData && !checkData.trashed) {
+                        return checkData;
+                    }
+                } catch (e) {
+                    localStorage.removeItem(LS_FILE_ID);
+                }
+            }
 
-            const res = await fetch(url, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            // 2. Dosyayı klasör içinde ara
+            if (folderId) {
+                const q = `'${folderId}' in parents and name = '${DRIVE_FILE_NAME}' and trashed = false`;
+                const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&spaces=drive&fields=files(id, name, modifiedTime)`;
 
-            if (!res.ok) return null;
-            const data = await res.json();
-            return (data.files && data.files.length > 0) ? data.files[0] : null;
+                const res = await fetchWithAuth(url);
+                const data = await res.json();
+                if (data.files && data.files.length > 0) {
+                    const file = data.files[0];
+                    localStorage.setItem(LS_FILE_ID, file.id);
+                    return file;
+                }
+            }
+
+            // 3. Bulunamadıysa genel olarak dosya adıyla ara (klasör dışına kaydedildiyse bile kurtarmak için)
+            const fallbackQ = `name = '${DRIVE_FILE_NAME}' and trashed = false`;
+            const fallbackUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(fallbackQ)}&spaces=drive&fields=files(id, name, modifiedTime)`;
+            try {
+                const fbRes = await fetchWithAuth(fallbackUrl);
+                const fbData = await fbRes.json();
+                if (fbData.files && fbData.files.length > 0) {
+                    const file = fbData.files[0];
+                    localStorage.setItem(LS_FILE_ID, file.id);
+                    return file;
+                }
+            } catch (fbErr) {}
+
+            return null;
         },
 
         // 1. VERİLERİ GOOGLE DRIVE'A YEDEKLE (UPLOAD / SYNC)
@@ -296,30 +389,28 @@
             isSyncing = true;
 
             try {
-                const token = await this.ensureAccessToken();
                 const folderId = await this.getOrCreateFolder();
                 const existingFile = await this.findDatabaseFile(folderId);
 
                 // Yerel verileri hazırla
                 const jsonData = await window.DB.exportAllJSON();
 
-                if (existingFile) {
-                    // Dosyayı güncelle (PATCH /upload/drive/v3/files/fileId)
+                let savedFileId = null;
+
+                if (existingFile && existingFile.id) {
+                    // Dosyayı güncelle
                     const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=media`;
-                    const updateRes = await fetch(updateUrl, {
+                    const updateRes = await fetchWithAuth(updateUrl, {
                         method: 'PATCH',
                         headers: {
-                            Authorization: `Bearer ${token}`,
                             'Content-Type': 'application/json; charset=utf-8'
                         },
                         body: jsonData
                     });
-
-                    if (!updateRes.ok) {
-                        throw new Error('Dosya güncellenemedi: ' + updateRes.statusText);
-                    }
+                    const updatedData = await updateRes.json();
+                    savedFileId = updatedData.id || existingFile.id;
                 } else {
-                    // Yeni dosya oluştur (Multipart upload)
+                    // Yeni dosya oluştur
                     const metadata = {
                         name: DRIVE_FILE_NAME,
                         parents: [folderId],
@@ -340,18 +431,19 @@
                         closeDelim;
 
                     const createUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-                    const createRes = await fetch(createUrl, {
+                    const createRes = await fetchWithAuth(createUrl, {
                         method: 'POST',
                         headers: {
-                            Authorization: `Bearer ${token}`,
                             'Content-Type': `multipart/related; boundary=${boundary}`
                         },
                         body: multipartRequestBody
                     });
+                    const createdData = await createRes.json();
+                    savedFileId = createdData.id;
+                }
 
-                    if (!createRes.ok) {
-                        throw new Error('Yeni dosya yüklenemedi: ' + createRes.statusText);
-                    }
+                if (savedFileId) {
+                    localStorage.setItem(LS_FILE_ID, savedFileId);
                 }
 
                 const now = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
@@ -368,25 +460,21 @@
             isSyncing = true;
 
             try {
-                const token = await this.ensureAccessToken();
                 const folderId = await this.getOrCreateFolder();
                 const file = await this.findDatabaseFile(folderId);
 
-                if (!file) {
-                    throw new Error('Google Drive klasörünüzde henüz yedek dosyası bulunamadı!');
+                if (!file || !file.id) {
+                    throw new Error('Google Drive hesabınızda henüz bir yedek dosyası bulunamadı! Lütfen önce "Verileri Şimdi Drive\'a Yedekle" butonuna tıklayarak ilk yedeğinizi alın.');
                 }
 
-                // Dosya içeriğini indir
                 const downloadUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`;
-                const res = await fetch(downloadUrl, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                const res = await fetchWithAuth(downloadUrl);
+                const jsonContent = await res.text();
 
-                if (!res.ok) {
-                    throw new Error('Yedek dosyası indirilemedi: ' + res.statusText);
+                if (!jsonContent || jsonContent.trim().length === 0) {
+                    throw new Error('İndirilen yedek dosyası boş görünüyor.');
                 }
 
-                const jsonContent = await res.text();
                 // Veritabanına içe aktar
                 await window.DB.importAllJSON(jsonContent);
 

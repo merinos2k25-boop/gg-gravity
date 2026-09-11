@@ -1053,7 +1053,7 @@ function setupGoogleDriveUI() {
 
                 await GoogleDrive.syncToDrive();
                 updateGDriveUIState();
-                alert('✓ Harika! Tüm verileriniz ve dekontlarınız Google Drive\'daki "Gelir-Gider Defteri (Bulut Yedekleri)" klasörüne başarıyla yüklendi!');
+                alert('✓ Harika! Tüm verileriniz ve dekontlarınız Google Drive\'daki "Gelir-Gider Defteri Yedekleri" klasörüne başarıyla yüklendi!');
             } catch (err) {
                 console.error('Yedekleme hatası:', err);
                 alert('Yedekleme sırasında hata oluştu: ' + (err.message || err));
