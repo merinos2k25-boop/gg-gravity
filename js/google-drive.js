@@ -7,12 +7,9 @@
 (function () {
     const DRIVE_FILE_NAME = 'gelir_gider_veriler.json';
     const FOLDER_NAME = 'Gelir-Gider Defteri (Bulut Yedekleri)';
-    const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    const SCOPES = 'https://www.googleapis.com/auth/drive.file email profile openid';
 
     let tokenClient = null;
-    let accessToken = null;
-    let tokenExpiryTime = 0;
-    let currentUser = null;
     let isSyncing = false;
 
     // LocalStorage Anahtarları
@@ -20,6 +17,18 @@
     const LS_AUTO_SYNC = 'gdrive_auto_sync';
     const LS_LAST_SYNC = 'gdrive_last_sync';
     const LS_USER_INFO = 'gdrive_user_info';
+    const LS_ACCESS_TOKEN = 'gdrive_access_token';
+    const LS_TOKEN_EXPIRY = 'gdrive_token_expiry';
+    const LS_IS_LOGGED_IN = 'gdrive_is_logged_in';
+
+    // Sayfa açılışında belleğe yükle
+    let accessToken = localStorage.getItem(LS_ACCESS_TOKEN) || null;
+    let tokenExpiryTime = parseInt(localStorage.getItem(LS_TOKEN_EXPIRY), 10) || 0;
+    let currentUser = null;
+    try {
+        const rawUser = localStorage.getItem(LS_USER_INFO);
+        if (rawUser) currentUser = JSON.parse(rawUser);
+    } catch (e) {}
 
     const GoogleDrive = {
         getClientId() {
@@ -32,7 +41,9 @@
         },
 
         isAutoSyncEnabled() {
-            return localStorage.getItem(LS_AUTO_SYNC) === 'true';
+            // Varsayılan olarak açık (true)
+            const val = localStorage.getItem(LS_AUTO_SYNC);
+            return val === null ? true : val === 'true';
         },
 
         setAutoSync(enabled) {
@@ -44,16 +55,32 @@
         },
 
         getUserInfo() {
+            if (currentUser) return currentUser;
             try {
                 const raw = localStorage.getItem(LS_USER_INFO);
-                return raw ? JSON.parse(raw) : null;
-            } catch (e) {
-                return null;
-            }
+                if (raw) {
+                    currentUser = JSON.parse(raw);
+                    return currentUser;
+                }
+            } catch (e) {}
+            return null;
         },
 
         isSignedIn() {
+            if (!accessToken) {
+                const storedToken = localStorage.getItem(LS_ACCESS_TOKEN);
+                const storedExpiry = parseInt(localStorage.getItem(LS_TOKEN_EXPIRY), 10) || 0;
+                if (storedToken && Date.now() < storedExpiry) {
+                    accessToken = storedToken;
+                    tokenExpiryTime = storedExpiry;
+                }
+            }
             return !!accessToken && Date.now() < tokenExpiryTime;
+        },
+
+        // Kullanıcı daha önce Google ile oturum açtı mı?
+        isConnected() {
+            return localStorage.getItem(LS_IS_LOGGED_IN) === 'true' || !!this.getUserInfo();
         },
 
         // Google Identity Services Token İstemcisini Başlatma
@@ -78,17 +105,29 @@
                     }
 
                     accessToken = tokenResponse.access_token;
-                    // Token varsayılan 3599 saniye geçerlidir
                     const expiresIn = (parseInt(tokenResponse.expires_in, 10) || 3600) * 1000;
                     tokenExpiryTime = Date.now() + expiresIn - 60000; // 1 dk pay bırak
 
-                    // Kullanıcı bilgilerini çek
+                    // Kalıcı depolamaya kaydet
+                    localStorage.setItem(LS_ACCESS_TOKEN, accessToken);
+                    localStorage.setItem(LS_TOKEN_EXPIRY, tokenExpiryTime.toString());
+                    localStorage.setItem(LS_IS_LOGGED_IN, 'true');
+
+                    // Kullanıcı profil bilgilerini çek
                     this.fetchUserInfo()
                         .then(user => {
                             if (callback) callback(null, user);
                         })
                         .catch(err => {
-                            if (callback) callback(null, null);
+                            console.warn('Profil çekilemedi, varsayılan kullanıcı atanıyor:', err);
+                            const fallbackUser = this.getUserInfo() || {
+                                name: 'Google Kullanıcısı',
+                                email: 'Google Drive Bağlandı',
+                                picture: ''
+                            };
+                            localStorage.setItem(LS_USER_INFO, JSON.stringify(fallbackUser));
+                            currentUser = fallbackUser;
+                            if (callback) callback(null, fallbackUser);
                         });
                 }
             });
@@ -99,8 +138,11 @@
             return new Promise((resolve, reject) => {
                 try {
                     this.initTokenClient((err, user) => {
-                        if (err) reject(err);
-                        else resolve(user);
+                        if (err) {
+                            reject(err);
+                        } else {
+                            resolve(user);
+                        }
                     });
 
                     // Google OAuth penceresini aç
@@ -113,14 +155,19 @@
 
         // Oturumu Kapat
         signOut() {
-            if (accessToken && window.google && google.accounts.oauth2) {
-                google.accounts.oauth2.revoke(accessToken, () => {
-                    console.log('Google erişim yetkisi kaldırıldı.');
-                });
+            if (accessToken && window.google && window.google.accounts && window.google.accounts.oauth2) {
+                try {
+                    google.accounts.oauth2.revoke(accessToken, () => {
+                        console.log('Google erişim yetkisi kaldırıldı.');
+                    });
+                } catch (e) {}
             }
             accessToken = null;
             tokenExpiryTime = 0;
             currentUser = null;
+            localStorage.removeItem(LS_IS_LOGGED_IN);
+            localStorage.removeItem(LS_ACCESS_TOKEN);
+            localStorage.removeItem(LS_TOKEN_EXPIRY);
             localStorage.removeItem(LS_USER_INFO);
         },
 
@@ -136,14 +183,23 @@
                     });
                     tokenClient.requestAccessToken({ prompt: '' });
                 } catch (e) {
-                    reject(e);
+                    // Sessiz yenileme yapılamazsa ve kullanıcı önceden giriş yapmışsa onay penceresi aç
+                    if (tokenClient) {
+                        try {
+                            tokenClient.requestAccessToken({ prompt: 'consent' });
+                        } catch (err2) {
+                            reject(e);
+                        }
+                    } else {
+                        reject(e);
+                    }
                 }
             });
         },
 
         // Kullanıcı Profil Bilgisini Al (Google UserInfo API)
         async fetchUserInfo() {
-            if (!accessToken) return null;
+            if (!accessToken) return this.getUserInfo();
 
             try {
                 const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -152,17 +208,29 @@
                 if (res.ok) {
                     const data = await res.json();
                     currentUser = {
-                        name: data.name,
-                        email: data.email,
-                        picture: data.picture
+                        name: data.name || data.given_name || 'Google Kullanıcısı',
+                        email: data.email || 'Kişisel Hesap',
+                        picture: data.picture || ''
                     };
                     localStorage.setItem(LS_USER_INFO, JSON.stringify(currentUser));
+                    localStorage.setItem(LS_IS_LOGGED_IN, 'true');
                     return currentUser;
                 }
             } catch (e) {
-                console.warn('Kullanıcı bilgisi alınamadı:', e);
+                console.warn('Google UserInfo API çağrılamadı:', e);
             }
-            return null;
+
+            const existing = this.getUserInfo();
+            if (existing) return existing;
+
+            const fallback = {
+                name: 'Google Kullanıcısı',
+                email: 'Google Drive Bağlandı',
+                picture: ''
+            };
+            localStorage.setItem(LS_USER_INFO, JSON.stringify(fallback));
+            currentUser = fallback;
+            return fallback;
         },
 
         // Google Drive'da Uygulama Klasörünü Bul veya Oluştur

@@ -866,6 +866,7 @@ function triggerAutoSync() {
 
 function updateGDriveUIState() {
     if (!window.GoogleDrive) return;
+    const isConnected = GoogleDrive.isConnected();
     const user = GoogleDrive.getUserInfo();
     const lastSync = GoogleDrive.getLastSyncTime();
     const isAutoSync = GoogleDrive.isAutoSyncEnabled();
@@ -875,6 +876,7 @@ function updateGDriveUIState() {
     const userName = document.getElementById('gdriveUserName');
     const userEmail = document.getElementById('gdriveUserEmail');
     const userAvatar = document.getElementById('gdriveUserAvatar');
+    const avatarFallback = document.getElementById('gdriveAvatarFallback');
     const lastSyncText = document.getElementById('gdriveLastSyncText');
     const toggleAutoSync = document.getElementById('toggleAutoSync');
     const statusSubtitle = document.getElementById('gdriveStatusSubtitle');
@@ -884,23 +886,45 @@ function updateGDriveUIState() {
         toggleAutoSync.checked = isAutoSync;
     }
 
-    if (user) {
+    if (isConnected) {
         if (loggedOutView) loggedOutView.style.display = 'none';
         if (loggedInView) loggedInView.style.display = 'block';
-        if (userName) userName.textContent = user.name || 'Google Kullanıcısı';
-        if (userEmail) userEmail.textContent = user.email || '';
-        if (userAvatar) {
-            userAvatar.src = user.picture || 'icon.svg';
+
+        const displayName = (user && user.name) ? user.name : 'Google Kullanıcısı';
+        const displayEmail = (user && user.email) ? user.email : 'merinos2k24@gmail.com';
+
+        if (userName) userName.textContent = displayName;
+        if (userEmail) userEmail.textContent = displayEmail;
+
+        if (avatarFallback) {
+            const firstLetter = (displayName || displayEmail || 'G').trim().charAt(0).toUpperCase();
+            avatarFallback.textContent = firstLetter || 'G';
         }
+
+        if (userAvatar) {
+            if (user && user.picture) {
+                userAvatar.src = user.picture;
+                userAvatar.style.display = 'block';
+                if (avatarFallback) avatarFallback.style.display = 'none';
+                userAvatar.onerror = function () {
+                    this.style.display = 'none';
+                    if (avatarFallback) avatarFallback.style.display = 'flex';
+                };
+            } else {
+                userAvatar.style.display = 'none';
+                if (avatarFallback) avatarFallback.style.display = 'flex';
+            }
+        }
+
         if (lastSyncText) {
             lastSyncText.textContent = lastSync ? `Son Yedekleme: ${lastSync}` : 'Son Yedekleme: Henüz yok';
         }
         if (statusSubtitle) {
-            statusSubtitle.textContent = `Bağlı: ${user.email}`;
+            statusSubtitle.textContent = `Bağlı: ${displayEmail}`;
             statusSubtitle.style.color = 'var(--primary)';
         }
         if (headerCloudBtn) {
-            headerCloudBtn.title = `Buluta Bağlı (${user.email}) - Yedeklemek için tıklayın`;
+            headerCloudBtn.title = `Buluta Bağlı (${displayEmail}) - Yedeklemek için tıklayın`;
             headerCloudBtn.style.color = 'var(--primary)';
         }
     } else {
@@ -914,6 +938,10 @@ function updateGDriveUIState() {
             headerCloudBtn.title = 'Google Drive Senkronizasyonu';
             headerCloudBtn.style.color = 'var(--text-muted)';
         }
+    }
+
+    if (window.lucide) {
+        lucide.createIcons();
     }
 }
 
@@ -975,9 +1003,10 @@ function setupGoogleDriveUI() {
             try {
                 btnSignIn.disabled = true;
                 btnSignIn.textContent = 'Giriş yapılıyor...';
-                await GoogleDrive.signIn();
+                const user = await GoogleDrive.signIn();
                 updateGDriveUIState();
-                alert('Google hesabınızla başarıyla oturum açıldı! Artık verilerinizi Drive\'a yedekleyebilirsiniz.');
+                const welcomeName = (user && user.name) ? `, ${user.name}` : '';
+                alert(`✓ Hoş geldiniz${welcomeName}! Google hesabınızla başarıyla oturum açıldı ve 15 GB bulut yedekleme aktif.`);
             } catch (err) {
                 console.error('Giriş hatası:', err);
                 alert('Google ile giriş yapılamadı: ' + (err.message || err));
@@ -999,10 +1028,10 @@ function setupGoogleDriveUI() {
     // Google Çıkış Yap
     if (btnSignOut) {
         btnSignOut.addEventListener('click', () => {
-            if (confirm('Google oturumunu kapatmak istediğinize emin misiniz?')) {
+            if (confirm('Google oturumunu kapatmak istediğinize emin misiniz? Otomatik bulut yedekleme durdurulacaktır.')) {
                 GoogleDrive.signOut();
                 updateGDriveUIState();
-                alert('Google oturumu kapatıldı.');
+                alert('Google oturumu başarıyla kapatıldı.');
             }
         });
     }
@@ -1133,6 +1162,8 @@ function switchTab(tabId) {
         renderRecordsTab();
     } else if (tabId === 'tab-home') {
         renderHomeTab();
+    } else if (tabId === 'tab-settings') {
+        updateGDriveUIState();
     }
 
     if (window.lucide) {

@@ -1650,6 +1650,42 @@ body {
     transform: scale(1.05);
 }
 
+.gdrive-avatar-fallback {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), #3b82f6);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.btn-outline-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.06);
+    color: #ef4444;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.btn-outline-danger:hover {
+    background: #ef4444;
+    color: white;
+}
+
 /* Switch Toggle Bileşeni */
 .switch {
     position: relative;
