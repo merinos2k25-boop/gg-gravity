@@ -51,12 +51,6 @@ async function initApp() {
         try {
             await initSettings();
             await loadData();
-
-            // İlk Kurulum Kontrolü (Veri yoksa otomatik örnek veri yükleme)
-            if (AppState.transactions.length === 0) {
-                await DB.seedSampleData();
-                await loadData();
-            }
         } catch (storageErr) {
             console.warn('Depolama başlatma uyarısı:', storageErr);
         }
@@ -818,20 +812,6 @@ function setupAccordions() {
             };
             reader.readAsText(file);
             jsonFileInput.value = '';
-        });
-    }
-
-    // Örnek Veri Yükle
-    const btnSeed = document.getElementById('btnSeedData');
-    if (btnSeed) {
-        btnSeed.addEventListener('click', async () => {
-            if (confirm('Hazır örnek veriler eklensin mi?')) {
-                await DB.seedSampleData();
-                await loadData();
-                setupYearMonthSelectors();
-                renderAll();
-                alert('Örnek veriler başarıyla yüklendi!');
-            }
         });
     }
 
