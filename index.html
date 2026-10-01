@@ -183,6 +183,37 @@
 
         <!-- ==================== 2. SEKME: KAYITLAR ==================== -->
         <section id="tab-records" class="tab-pane">
+            <!-- Kayıtlar Dönem Filtresi (Ay / Yıl Seçimi) -->
+            <div class="period-filter-card">
+                <div class="period-filter-info">
+                    <div class="period-icon-bubble">
+                        <i data-lucide="calendar"></i>
+                    </div>
+                    <div>
+                        <div class="period-filter-title">Kayıt Dönemi</div>
+                        <div class="period-filter-sub" id="recordsPeriodSubtitle">Seçili aya ait kayıtlar</div>
+                    </div>
+                </div>
+                <div class="date-filter-group">
+                    <select id="recordsYearSelect" class="select-input select-sm"></select>
+                    <select id="recordsMonthSelect" class="select-input select-sm">
+                        <option value="1">Ocak</option>
+                        <option value="2">Şubat</option>
+                        <option value="3">Mart</option>
+                        <option value="4">Nisan</option>
+                        <option value="5">Mayıs</option>
+                        <option value="6">Haziran</option>
+                        <option value="7">Temmuz</option>
+                        <option value="8">Ağustos</option>
+                        <option value="9">Eylül</option>
+                        <option value="10">Ekim</option>
+                        <option value="11">Kasım</option>
+                        <option value="12">Aralık</option>
+                        <option value="all">Tüm Aylar</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="filter-bar">
                 <div class="search-input-wrapper">
                     <i data-lucide="search" class="search-icon"></i>

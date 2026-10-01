@@ -29,6 +29,7 @@ const AppState = {
     transactions: [],
     settings: {},
     activeFilter: 'all',
+    recordsMonthFilter: new Date().getMonth() + 1,
     searchQuery: '',
     selectedYear: new Date().getFullYear(),
     selectedMonth: new Date().getMonth() + 1,
@@ -409,8 +410,39 @@ function renderRecordsTab() {
 
     container.innerHTML = '';
 
+    const monthsTr = [
+        'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+        'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+    ];
+
+    const recordsSubtitle = document.getElementById('recordsPeriodSubtitle');
+    if (recordsSubtitle) {
+        if (AppState.recordsMonthFilter === 'all') {
+            recordsSubtitle.textContent = `${AppState.selectedYear} yılına ait tüm kayıtlar`;
+        } else {
+            const mIdx = (parseInt(AppState.recordsMonthFilter, 10) || AppState.selectedMonth) - 1;
+            recordsSubtitle.textContent = `${monthsTr[mIdx] || ''} ${AppState.selectedYear} dönemine ait kayıtlar`;
+        }
+    }
+
     // Arama ve Filtreleme
     let filtered = AppState.transactions.filter(tx => {
+        // Tarih / Ay-Yıl Filtresi (Geçmiş ay verileri geçmiş ayda kalır, yeni aya karışmaz)
+        if (AppState.recordsMonthFilter !== 'all') {
+            if (!tx.dueDate) return false;
+            const parts = tx.dueDate.split('-');
+            const txYear = parts[0];
+            const txMonth = parts[1];
+            const targetYear = String(AppState.selectedYear);
+            const targetMonth = String(AppState.recordsMonthFilter || AppState.selectedMonth).padStart(2, '0');
+            if (txYear !== targetYear || txMonth !== targetMonth) return false;
+        } else if (tx.dueDate) {
+            const parts = tx.dueDate.split('-');
+            if (parts[0] !== String(AppState.selectedYear)) return false;
+        } else {
+            return false;
+        }
+
         // Arama sorgusu
         if (AppState.searchQuery) {
             const q = AppState.searchQuery.toLowerCase();
@@ -436,11 +468,15 @@ function renderRecordsTab() {
     filtered.sort((a, b) => new Date(b.dueDate || 0) - new Date(a.dueDate || 0));
 
     if (filtered.length === 0) {
+        const periodText = AppState.recordsMonthFilter === 'all'
+            ? `${AppState.selectedYear} yılında`
+            : `${monthsTr[(parseInt(AppState.recordsMonthFilter, 10) || AppState.selectedMonth) - 1] || ''} ${AppState.selectedYear} döneminde`;
+
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">📋</div>
                 <div class="empty-state-title">Kayıt Bulunamadı</div>
-                <div class="empty-state-desc">Belirtilen kriterlere uygun fatura, taksit veya gelir kaydı yok.</div>
+                <div class="empty-state-desc">${periodText} belirtilen kriterlere uygun fatura, taksit veya gelir kaydı yok.</div>
                 <button class="btn-primary" id="btnEmptyAdd">
                     <i data-lucide="plus"></i> Yeni Kayıt Ekle
                 </button>
@@ -448,6 +484,7 @@ function renderRecordsTab() {
         `;
         const btnEmpty = document.getElementById('btnEmptyAdd');
         if (btnEmpty) btnEmpty.addEventListener('click', () => openRecordModal());
+        if (window.lucide) lucide.createIcons();
         return;
     }
 
@@ -640,6 +677,7 @@ function populateStatSubList(containerId, list) {
 function setupYearMonthSelectors() {
     const selectors = [
         { y: document.getElementById('homeYearSelect'), m: document.getElementById('homeMonthSelect') },
+        { y: document.getElementById('recordsYearSelect'), m: document.getElementById('recordsMonthSelect'), isRecords: true },
         { y: document.getElementById('analysisYearSelect'), m: document.getElementById('analysisMonthSelect') }
     ];
 
@@ -674,9 +712,19 @@ function setupYearMonthSelectors() {
         }
 
         if (pair.m) {
-            pair.m.value = String(AppState.selectedMonth);
+            if (pair.isRecords && AppState.recordsMonthFilter === 'all') {
+                pair.m.value = 'all';
+            } else {
+                pair.m.value = String(AppState.selectedMonth);
+            }
             pair.m.onchange = (e) => {
-                AppState.selectedMonth = parseInt(e.target.value, 10);
+                const val = e.target.value;
+                if (pair.isRecords && val === 'all') {
+                    AppState.recordsMonthFilter = 'all';
+                } else {
+                    AppState.selectedMonth = parseInt(val, 10);
+                    AppState.recordsMonthFilter = AppState.selectedMonth;
+                }
                 syncSelectors();
                 renderAll();
             };
@@ -686,7 +734,13 @@ function setupYearMonthSelectors() {
     function syncSelectors() {
         selectors.forEach(pair => {
             if (pair.y) pair.y.value = String(AppState.selectedYear);
-            if (pair.m) pair.m.value = String(AppState.selectedMonth);
+            if (pair.m) {
+                if (pair.isRecords && AppState.recordsMonthFilter === 'all') {
+                    pair.m.value = 'all';
+                } else {
+                    pair.m.value = String(AppState.selectedMonth);
+                }
+            }
         });
     }
 }
@@ -1371,7 +1425,20 @@ function openRecordModal(existingTx = null) {
     const installmentFields = document.getElementById('installmentFields');
 
     // Bugünün tarihi (varsayılan)
-    const todayStr = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
+    // Aktif seçili dönem kontrolü (Seçili ay ve yıla uygun varsayılan tarih)
+    let defaultDueDate = todayStr;
+    const targetYear = AppState.selectedYear;
+    const targetMonth = (AppState.recordsMonthFilter !== 'all' ? AppState.recordsMonthFilter : AppState.selectedMonth) || (today.getMonth() + 1);
+
+    if (targetYear !== today.getFullYear() || targetMonth !== (today.getMonth() + 1)) {
+        const day = Math.min(today.getDate(), 28);
+        const mStr = String(targetMonth).padStart(2, '0');
+        const dStr = String(day).padStart(2, '0');
+        defaultDueDate = `${targetYear}-${mStr}-${dStr}`;
+    }
 
     if (existingTx) {
         modalTitle.innerHTML = `<i data-lucide="edit"></i> Kaydı Düzenle`;
@@ -1380,7 +1447,7 @@ function openRecordModal(existingTx = null) {
         formCategory.value = existingTx.category || 'su';
         formTitle.value = existingTx.title || '';
         formAmount.value = existingTx.amount || '';
-        formDueDate.value = existingTx.dueDate || todayStr;
+        formDueDate.value = existingTx.dueDate || defaultDueDate;
         formIsPaid.value = existingTx.isPaid ? 'true' : 'false';
         formNotes.value = existingTx.notes || '';
 
@@ -1401,7 +1468,7 @@ function openRecordModal(existingTx = null) {
         formCategory.value = 'su';
         formTitle.value = '';
         formAmount.value = '';
-        formDueDate.value = todayStr;
+        formDueDate.value = defaultDueDate;
         formIsPaid.value = 'false';
         formNotes.value = '';
         installmentFields.style.display = 'none';
