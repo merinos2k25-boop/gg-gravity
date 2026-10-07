@@ -255,6 +255,78 @@ function renderHomeTab() {
             });
         }
     }
+
+    // 4. Son Yapılan Ödemeler Bölümü
+    const homeRecentList = document.getElementById('homeRecentPaymentsList');
+    const recentBadge = document.getElementById('recentPaymentsBadge');
+    const paidExpenses = analytics.monthlyTx.filter(t => t.type !== 'income' && t.isPaid);
+
+    // En son ödenen en üstte olacak şekilde sırala (paidDate veya dueDate)
+    paidExpenses.sort((a, b) => new Date(b.paidDate || b.dueDate || 0) - new Date(a.paidDate || a.dueDate || 0));
+
+    if (recentBadge) {
+        recentBadge.textContent = `${paidExpenses.length} Ödeme • ${formatCurrency(analytics.totalPaidExpenses)}`;
+    }
+
+    if (homeRecentList) {
+        homeRecentList.innerHTML = '';
+        if (paidExpenses.length === 0) {
+            homeRecentList.innerHTML = `
+                <div class="empty-state" style="padding: 24px 16px; border-radius: 14px; border: 1px dashed var(--border-color); grid-column: 1 / -1; width: 100%;">
+                    <div class="empty-state-icon" style="font-size: 1.8rem;">🎉</div>
+                    <div class="empty-state-title" style="font-size: 0.95rem;">Tamamlanan Ödeme Yok</div>
+                    <div class="empty-state-desc" style="font-size: 0.8rem;">Bu dönem için henüz "Ödendi" olarak işaretlenmiş fatura veya taksit bulunmuyor.</div>
+                </div>
+            `;
+        } else {
+            paidExpenses.forEach(tx => {
+                const meta = CATEGORY_META[tx.category] || CATEGORY_META['diger'];
+                homeRecentList.appendChild(createHomeRecentPaidCard(tx, meta));
+            });
+        }
+    }
+}
+
+function createHomeRecentPaidCard(tx, meta) {
+    const card = document.createElement('div');
+    card.className = 'home-cat-card income-card';
+    card.style.borderLeft = '4px solid var(--success)';
+
+    let displayTitle = tx.title;
+    if (tx.category === 'taksit' && tx.installmentTotal) {
+        displayTitle = `${tx.title} (${tx.installmentCurrent || 1}/${tx.installmentTotal})`;
+    }
+
+    const payDateStr = tx.paidDate ? formatDateTR(tx.paidDate) : formatDateTR(tx.dueDate);
+
+    card.innerHTML = `
+        <div class="cat-info-group">
+            <div class="cat-emoji-bubble" style="background: rgba(16, 185, 129, 0.12); color: var(--success); font-size: 1.15rem;">
+                ${meta.emoji}
+            </div>
+            <div class="cat-text-group" style="min-width: 0;">
+                <span class="cat-name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${displayTitle}</span>
+                <span class="cat-status-text" style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+                    <i data-lucide="check-circle" style="width: 12px; height: 12px; color: var(--success); flex-shrink: 0;"></i>
+                    <span>Ödendi: ${payDateStr}</span>
+                    ${tx.receiptImage ? `<span class="receipt-tag" style="padding: 1px 4px; font-size: 0.62rem;"><i data-lucide="paperclip" style="width: 10px; height: 10px;"></i> Dekont</span>` : ''}
+                </span>
+            </div>
+        </div>
+        <div class="cat-amount-group">
+            <span class="cat-amount" style="color: var(--success);">₺${Number(tx.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+            <span class="status-pill status-paid" style="margin-top: 3px; font-size: 0.65rem;">
+                <i data-lucide="check" style="width: 11px; height: 11px;"></i>
+                Ödendi
+            </span>
+        </div>
+    `;
+
+    card.addEventListener('click', () => {
+        openDetailModal(tx);
+    });
+
+    return card;
 }
 
 function createHomeTransactionCard(tx, meta, isInstallment) {
@@ -519,14 +591,13 @@ function createRecordListItem(tx) {
             </div>
             <div class="record-content">
                 <div class="record-title-row">
-                    <span class="record-title">${displayTitle}</span>
-                    ${tx.receiptImage ? `<span class="receipt-tag" title="Dekontu Görüntüle"><i data-lucide="paperclip" style="width: 12px; height: 12px;"></i> Dekont</span>` : ''}
+                    <span class="record-title" title="${displayTitle}">${displayTitle}</span>
+                    ${tx.receiptImage ? `<span class="receipt-tag" title="Dekontu Görüntüle"><i data-lucide="paperclip" style="width: 11px; height: 11px;"></i> Dekont</span>` : ''}
                 </div>
                 <div class="record-meta">
-                    <span>${meta.name}</span>
+                    <span class="record-cat-name">${meta.name}</span>
                     <span>•</span>
-                    <span>${formatDateTR(tx.dueDate)}</span>
-                    <span class="status-pill ${statusObj.badgeClass}" style="padding: 1px 6px;">${statusObj.text}</span>
+                    <span class="record-date">${formatDateTR(tx.dueDate)}</span>
                 </div>
             </div>
         </div>
@@ -536,13 +607,17 @@ function createRecordListItem(tx) {
                 <div class="record-amount" style="color: ${isIncome ? 'var(--success)' : 'var(--text-main)'};">
                     ${isIncome ? '+' : '-'}₺${Number(tx.amount).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                 </div>
+                <span class="status-pill ${statusObj.badgeClass}">
+                    <i data-lucide="${statusObj.icon}" style="width: 11px; height: 11px;"></i>
+                    ${statusObj.text}
+                </span>
             </div>
             <div class="record-actions">
                 <button class="action-btn-sm edit-record-btn" title="Düzenle">
-                    <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i>
+                    <i data-lucide="edit-3" style="width: 15px; height: 15px;"></i>
                 </button>
                 <button class="action-btn-sm delete-btn delete-record-btn" title="Sil">
-                    <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                    <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
                 </button>
             </div>
         </div>
@@ -768,6 +843,14 @@ function setupAccordions() {
     if (headerIncomes) {
         headerIncomes.addEventListener('click', () => {
             document.getElementById('sectionIncomes')?.classList.toggle('open');
+        });
+    }
+
+    // Ana Sayfa: Son Yapılan Ödemeler Açılır/Kapanır Başlığı
+    const headerRecentPayments = document.getElementById('headerRecentPayments');
+    if (headerRecentPayments) {
+        headerRecentPayments.addEventListener('click', () => {
+            document.getElementById('sectionRecentPayments')?.classList.toggle('open');
         });
     }
 
@@ -1184,10 +1267,16 @@ function switchTab(tabId) {
     // Sayfa değiştirildiğinde anında en yukarı kaydır (mobil zıplamayı ve alt bar kaymasını önler)
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
 
-    // Ayarlar sekmesinde FAB (+) butonunu gizle, diğerlerinde göster
+    // Analiz ve Ayarlar sekmesinde FAB (+) butonunu gizle, diğerlerinde göster
     const fab = document.getElementById('fabAddBtn');
     if (fab) {
-        fab.style.display = (tabId === 'tab-settings') ? 'none' : 'flex';
+        fab.style.display = (tabId === 'tab-settings' || tabId === 'tab-analysis') ? 'none' : 'flex';
+    }
+
+    // Üst başlıktaki Hızlı Kayıt Ekle (+) butonunu da Analiz ve Ayarlar sekmesinde gizle
+    const btnQuickAdd = document.getElementById('btnQuickAdd');
+    if (btnQuickAdd) {
+        btnQuickAdd.style.display = (tabId === 'tab-settings' || tabId === 'tab-analysis') ? 'none' : 'flex';
     }
 
     if (tabId === 'tab-analysis') {

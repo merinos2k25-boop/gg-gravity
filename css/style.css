@@ -551,7 +551,10 @@ body {
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 12px;
-    margin-top: 4px;
+    margin-top: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.2;
 }
 
 .status-paid {
@@ -652,19 +655,20 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    padding-bottom: 90px;
 }
 
 .record-item-card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 14px;
-    padding: 14px 16px;
+    padding: 12px 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     box-shadow: var(--shadow-sm);
     transition: all 0.2s;
-    gap: 12px;
+    gap: 10px;
 }
 
 .record-item-card:hover {
@@ -675,13 +679,15 @@ body {
 .record-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex: 1;
     min-width: 0;
+    overflow: hidden;
 }
 
 .record-checkbox-wrap {
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .custom-checkbox {
@@ -706,22 +712,25 @@ body {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    flex: 1;
+    overflow: hidden;
 }
 
 .record-title-row {
     display: flex;
     align-items: center;
     gap: 6px;
-    flex-wrap: wrap;
+    min-width: 0;
 }
 
 .record-title {
-    font-size: 0.94rem;
+    font-size: 0.92rem;
     font-weight: 600;
     color: var(--text-main);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .receipt-tag {
@@ -730,47 +739,72 @@ body {
     gap: 2px;
     background: rgba(59, 130, 246, 0.12);
     color: #3b82f6;
-    font-size: 0.68rem;
+    font-size: 0.65rem;
     font-weight: 600;
-    padding: 2px 6px;
+    padding: 2px 5px;
     border-radius: 6px;
     cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .record-meta {
-    font-size: 0.74rem;
+    font-size: 0.73rem;
     color: var(--text-muted);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-top: 2px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.record-cat-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.record-date {
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .record-right {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-shrink: 0;
 }
 
 .record-amount-col {
     text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .record-amount {
-    font-size: 1rem;
+    font-size: 0.98rem;
     font-weight: 700;
+    white-space: nowrap;
+    line-height: 1.2;
 }
 
 .record-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
+    flex-shrink: 0;
 }
 
 .action-btn-sm {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 8px;
     border: none;
     background: transparent;
@@ -780,6 +814,35 @@ body {
     justify-content: center;
     cursor: pointer;
     transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+    .record-item-card {
+        padding: 10px 12px;
+        gap: 8px;
+    }
+    .record-left {
+        gap: 8px;
+    }
+    .cat-emoji-bubble {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.95rem !important;
+    }
+    .record-title {
+        font-size: 0.88rem;
+    }
+    .record-amount {
+        font-size: 0.92rem;
+    }
+    .action-btn-sm {
+        width: 28px;
+        height: 28px;
+    }
+    .record-right {
+        gap: 6px;
+    }
 }
 
 .action-btn-sm:hover {
